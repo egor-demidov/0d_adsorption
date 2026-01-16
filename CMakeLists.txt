@@ -8,7 +8,9 @@ find_package(SUNDIALS CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(Ceres CONFIG REQUIRED)
 
-add_executable(0d_adsorption main.cpp)
+add_executable(0d_adsorption main.cpp
+        model.cpp
+        model.h)
 
 #set(CMAKE_CXX_FLAGS "-O3 -flto=auto ${CMAKE_CXX_FLAGS}")
 
