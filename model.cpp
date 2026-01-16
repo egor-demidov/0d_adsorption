@@ -28,6 +28,7 @@ Model::Model(FixedParameters const & fixed_parameters, FittedParameters const & 
   }
   , sunctx_(nullptr)
   , y_(nullptr)
+  , atol_(nullptr)
   , cvode_mem_(nullptr)
   , A_(nullptr)
   , LS_(nullptr)
@@ -56,14 +57,28 @@ Model::Model(FixedParameters const & fixed_parameters, FittedParameters const & 
   if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeInit failed\n"); exit(EXIT_FAILURE); }
 
   CVodeSetMaxNumSteps(cvode_mem_, 200000); // or 1000000 if needed
+  CVodeSetMaxStep(cvode_mem_, fixed_parameters_.dt);
+  CVodeSetInitStep(cvode_mem_, fixed_parameters_.dt);
 
   flag = CVodeSetUserData(cvode_mem_, this);
   if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeSetUserData failed\n"); exit(EXIT_FAILURE); }
 
   // tolerances
   sunrealtype reltol = 1e-8;
-  sunrealtype abstol = 1e-10;
-  flag = CVodeSStolerances(cvode_mem_, reltol, abstol);
+
+  atol_ = N_VNew_Serial(N, sunctx_);
+  auto* a = N_VGetArrayPointer(atol_);
+
+  // States: scale to your magnitude (~1e10 for X, Xgs)
+  a[0] = 1e2;   // X
+  a[1] = 1e2;   // Xgs
+  a[2] = 1e-6;  // Xs (if small)
+  a[3] = 1e-6;  // P  (if small)
+
+  // Sensitivities: MUCH looser at first
+  for (int i = 4; i < N; ++i) a[i] = 1e6;
+
+  flag = CVodeSVtolerances(cvode_mem_, reltol, atol_);
   if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeSStolerances failed\n"); exit(EXIT_FAILURE); }
 
   // Dense linear solver + dense Jacobian
@@ -73,7 +88,7 @@ Model::Model(FixedParameters const & fixed_parameters, FittedParameters const & 
   flag = CVodeSetLinearSolver(cvode_mem_, LS_, A_);
   if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeSetLinearSolver failed\n"); exit(EXIT_FAILURE); }
 
-  flag = CVodeSetJacFn(cvode_mem_, jac_cvode);
+  flag = CVodeSetJacFn(cvode_mem_, nullptr);
   if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeSetJacFn failed\n"); exit(EXIT_FAILURE); }
 }
 
@@ -83,6 +98,7 @@ Model::~Model() {
   SUNLinSolFree(LS_);
   SUNMatDestroy(A_);
   N_VDestroy(y_);
+  N_VDestroy(atol_);
 
   SUNContext_Free(&sunctx_);
 }
@@ -97,7 +113,9 @@ int Model::rhs(sunrealtype t, N_Vector y, N_Vector ydot) const {
   const sunrealtype a    = derived_parameters_.a;
   const sunrealtype Xin  = fixed_parameters_.X_in;
   const sunrealtype R    = fixed_parameters_.R;
-  const sunrealtype k_a_eff = get_k_ads_eff(t);
+  const sunrealtype ft   = f_of_t(t);
+  const sunrealtype k_a_eff = fitted_parameters_.k_ads * ft;
+  // const sunrealtype k_a_eff = fitted_parameters_.k_ads;
 
   sunrealtype* Y  = N_VGetArrayPointer(y);
   sunrealtype* dY = N_VGetArrayPointer(ydot);
@@ -153,8 +171,8 @@ int Model::rhs(sunrealtype t, N_Vector y, N_Vector ydot) const {
 
     switch (j) {
       case 0: // k_ads
-        b1 = -(2.0/R)*Xgs*(S - Xs);
-        b2 =  (1.0)*Xgs*(S - Xs);
+        b1 = -(2.0/R)*Xgs*(S - Xs)*ft;
+        b2 =  (1.0)*Xgs*(S - Xs)*ft;
         break;
       case 1: // k_des
         b1 =  Xs;
@@ -196,7 +214,9 @@ int Model::jac(sunrealtype t, N_Vector y, N_Vector fy, SUNMatrix J, N_Vector tmp
   const sunrealtype k_d  = derived_parameters_.k_diff;
   const sunrealtype a    = derived_parameters_.a;
   const sunrealtype R    = fixed_parameters_.R;
-  const sunrealtype k_a_eff = get_k_ads_eff(t);
+  const sunrealtype ft   = f_of_t(t);
+  const sunrealtype k_a_eff = fitted_parameters_.k_ads * ft;
+  // const sunrealtype k_a_eff = fitted_parameters_.k_ads;
 
   sunrealtype* Y = N_VGetArrayPointer(y);
 
@@ -287,10 +307,10 @@ int Model::jac(sunrealtype t, N_Vector y, N_Vector fy, SUNMatrix J, N_Vector tmp
 
     switch (j) {
       case 0: // k_ads: b = [0, -(2/R)Xgs(S-Xs), Xgs(S-Xs), 0]
-        db_Xgs_1 = -(2.0/R)*(S - Xs);
-        db_Xgs_2 =  (S - Xs);
-        db_Xs_1  =  (2.0/R)*Xgs;
-        db_Xs_2  = -Xgs;
+        db_Xgs_1 = -(2.0/R)*(S - Xs)*ft;
+        db_Xgs_2 =  (S - Xs)*ft;
+        db_Xs_1  =  (2.0/R)*Xgs*ft;
+        db_Xs_2  = -Xgs*ft;
         break;
       case 1: // k_des: b = [0, Xs, -(R/2)Xs, 0]
         db_Xs_1  =  1.0;

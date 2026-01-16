@@ -1,5 +1,8 @@
 #include <vector>
 #include <fstream>
+#include <array>
+#include <fmt/format.h>
+#include <fmt/ostream.h>
 
 #include "model.h"
 
@@ -28,6 +31,7 @@ int main() {
 
     const long N_t = 800;
     std::vector<double> ts(N_t), Xs(N_t);
+    std::vector<std::array<double, 5>> dXs(N_t, std::array<double, 5>{});
 
     ts[0] = 0.0;
     Xs[0] = fixed_params.X_in;
@@ -37,13 +41,22 @@ int main() {
 
         ts[i] = model.get_t();
         Xs[i] = model.get_Y()[0];
+        for (int j = 0; j < 5; j ++)
+            dXs[i][j] = model.get_Y()[Model::sbase(j)];
     }
 
     std::ofstream ofs("out_data.csv");
 
-    ofs << "t, X\n";
+    fmt::println(ofs, "t, X, dX/dk_ads, dX/dk_des, dX/dk_rxn, dX/dS0, dX/dY0");
+
+    double multipliers[] = {fitted_params.k_ads, fitted_params.k_des, fitted_params.k_rxn, fitted_params.S_tot, fitted_params.P_tot};
+
     for (long i = 0; i < N_t; i ++) {
-        ofs << ts[i] << ", " << Xs[i] << "\n";
+        fmt::print(ofs, "{}, {}", ts[i], Xs[i]);
+        for (int j = 0; j < 5; j ++) {
+            fmt::print(ofs, ", {}", dXs[i][j]*multipliers[j]);
+        }
+        fmt::println(ofs, "");
     }
 
     return 0;
