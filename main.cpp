@@ -5,31 +5,33 @@
 #include <vector>
 #include <fstream>
 
+#include <sundials/sundials_types.h>     // sunrealtype
+#include <sundials/sundials_context.h>   // SUNContext_Create, SUNContext_Free
+
 #include <cvode/cvode.h>                 // CVode*
 #include <nvector/nvector_serial.h>      // N_Vector, N_VNew_Serial
 #include <sunmatrix/sunmatrix_dense.h>   // SUNMatrix_Dense
 #include <sunlinsol/sunlinsol_dense.h>   // SUNLinSol_Dense
-#include <sundials/sundials_types.h>     // realtype
 #include <sundials/sundials_math.h>      // SUNRabs
-#include <sundials/sundials_context.h>   // SUNContext_Create, SUNContext_Free
+
 
 // ---------- User data ----------
 struct UserData {
   // Parameters to fit:
-  realtype k_ads;   // k_a
-  realtype k_des;   // k_de
-  realtype k_rxn;   // k_r
-  realtype S_tot;   // S
-  realtype P_tot;   // P_T
+  sunrealtype k_ads;   // k_a
+  sunrealtype k_des;   // k_de
+  sunrealtype k_rxn;   // k_r
+  sunrealtype S_tot;   // S
+  sunrealtype P_tot;   // P_T
 
   // Known constants:
-  realtype k_diff;  // k_d (known)
-  realtype a;       // F/V
-  realtype X_in;    // inlet
-  realtype R;       // radius (constant)
-  realtype t_ads_start;
-  realtype t_ads_end;
-  realtype k_ads_smooth;
+  sunrealtype k_diff;  // k_d (known)
+  sunrealtype a;       // F/V
+  sunrealtype X_in;    // inlet
+  sunrealtype R;       // radius (constant)
+  sunrealtype t_ads_start;
+  sunrealtype t_ads_end;
+  sunrealtype k_ads_smooth;
 };
 
 // Parameter count
@@ -41,37 +43,37 @@ static constexpr int N  = NX + NP*NX; // 24
 inline int sbase(int j) { return NX + NX*j; }
 
 // ---------- RHS for augmented system ----------
-static int rhs(realtype t, N_Vector y, N_Vector ydot, void* user_data)
+static int rhs(sunrealtype t, N_Vector y, N_Vector ydot, void* user_data)
 {
   (void)t;
   auto* ud = static_cast<UserData*>(user_data);
 
-  const realtype k_a  = ud->k_ads;
-  const realtype k_de = ud->k_des;
-  const realtype k_r  = ud->k_rxn;
-  const realtype S    = ud->S_tot;
-  const realtype PT   = ud->P_tot;
+  const sunrealtype k_a  = ud->k_ads;
+  const sunrealtype k_de = ud->k_des;
+  const sunrealtype k_r  = ud->k_rxn;
+  const sunrealtype S    = ud->S_tot;
+  const sunrealtype PT   = ud->P_tot;
 
-  const realtype k_d  = ud->k_diff;
-  const realtype a    = ud->a;
-  const realtype Xin  = ud->X_in;
-  const realtype R    = ud->R;
-  const realtype k_a_eff = 0.5 * k_a * (tanh((t - ud->t_ads_start) / ud->k_ads_smooth) - tanh((t - ud->t_ads_end) / ud->k_ads_smooth));
+  const sunrealtype k_d  = ud->k_diff;
+  const sunrealtype a    = ud->a;
+  const sunrealtype Xin  = ud->X_in;
+  const sunrealtype R    = ud->R;
+  const sunrealtype k_a_eff = 0.5 * k_a * (tanh((t - ud->t_ads_start) / ud->k_ads_smooth) - tanh((t - ud->t_ads_end) / ud->k_ads_smooth));
 
-  realtype* Y  = N_VGetArrayPointer(y);
-  realtype* dY = N_VGetArrayPointer(ydot);
+  sunrealtype* Y  = N_VGetArrayPointer(y);
+  sunrealtype* dY = N_VGetArrayPointer(ydot);
 
   // States
-  const realtype X   = Y[0];
-  const realtype Xgs = Y[1];
-  const realtype Xs  = Y[2];
-  const realtype P   = Y[3];
+  const sunrealtype X   = Y[0];
+  const sunrealtype Xgs = Y[1];
+  const sunrealtype Xs  = Y[2];
+  const sunrealtype P   = Y[3];
 
   // ---- f(x,theta) ----
-  const realtype f1 = a*(Xin - X) - k_d*(X - Xgs);
-  const realtype f2 = k_d*(X - Xgs) - (2.0/R)*k_a_eff*Xgs*(S - Xs) + k_de*Xs;
-  const realtype f3 = k_a_eff*Xgs*(S - Xs) - (R/2.0)*k_de*Xs - k_r*Xs*(PT - P);
-  const realtype f4 = k_r*Xs*(PT - P);
+  const sunrealtype f1 = a*(Xin - X) - k_d*(X - Xgs);
+  const sunrealtype f2 = k_d*(X - Xgs) - (2.0/R)*k_a_eff*Xgs*(S - Xs) + k_de*Xs;
+  const sunrealtype f3 = k_a_eff*Xgs*(S - Xs) - (R/2.0)*k_de*Xs - k_r*Xs*(PT - P);
+  const sunrealtype f4 = k_r*Xs*(PT - P);
 
   dY[0] = f1;
   dY[1] = f2;
@@ -79,36 +81,36 @@ static int rhs(realtype t, N_Vector y, N_Vector ydot, void* user_data)
   dY[3] = f4;
 
   // ---- A = df/dx (4x4) ----
-  const realtype A11 = -a - k_d;
-  const realtype A12 =  k_d;
+  const sunrealtype A11 = -a - k_d;
+  const sunrealtype A12 =  k_d;
 
-  const realtype A21 =  k_d;
-  const realtype A22 = -k_d - (2.0/R)*k_a_eff*(S - Xs);
-  const realtype A23 =  (2.0/R)*k_a_eff*Xgs + k_de;
+  const sunrealtype A21 =  k_d;
+  const sunrealtype A22 = -k_d - (2.0/R)*k_a_eff*(S - Xs);
+  const sunrealtype A23 =  (2.0/R)*k_a_eff*Xgs + k_de;
 
-  const realtype A32 =  k_a_eff*(S - Xs);
-  const realtype A33 = -k_a_eff*Xgs - (R/2.0)*k_de - k_r*(PT - P);
-  const realtype A34 =  k_r*Xs;
+  const sunrealtype A32 =  k_a_eff*(S - Xs);
+  const sunrealtype A33 = -k_a_eff*Xgs - (R/2.0)*k_de - k_r*(PT - P);
+  const sunrealtype A34 =  k_r*Xs;
 
-  const realtype A43 =  k_r*(PT - P);
-  const realtype A44 = -k_r*Xs;
+  const sunrealtype A43 =  k_r*(PT - P);
+  const sunrealtype A44 = -k_r*Xs;
 
   // For each parameter, build b^(j) = df/dtheta_j and compute sdot = A*s + b
   for (int j = 0; j < NP; ++j) {
     const int b = sbase(j);
-    const realtype sX   = Y[b+0];
-    const realtype sXgs = Y[b+1];
-    const realtype sXs  = Y[b+2];
-    const realtype sP   = Y[b+3];
+    const sunrealtype sX   = Y[b+0];
+    const sunrealtype sXgs = Y[b+1];
+    const sunrealtype sXs  = Y[b+2];
+    const sunrealtype sP   = Y[b+3];
 
     // A*s
-    realtype As0 = A11*sX + A12*sXgs;
-    realtype As1 = A21*sX + A22*sXgs + A23*sXs;
-    realtype As2 = A32*sXgs + A33*sXs + A34*sP;
-    realtype As3 = A43*sXs + A44*sP;
+    sunrealtype As0 = A11*sX + A12*sXgs;
+    sunrealtype As1 = A21*sX + A22*sXgs + A23*sXs;
+    sunrealtype As2 = A32*sXgs + A33*sXs + A34*sP;
+    sunrealtype As3 = A43*sXs + A44*sP;
 
     // b^(j)
-    realtype b0=0, b1=0, b2=0, b3=0;
+    sunrealtype b0=0, b1=0, b2=0, b3=0;
 
     switch (j) {
       case 0: // k_ads
@@ -146,49 +148,49 @@ static int rhs(realtype t, N_Vector y, N_Vector ydot, void* user_data)
 
 // ---------- Analytic Jacobian J = d(rhs)/dy (24x24) ----------
 // Dense Jacobian signature for CVODE:
-// int JacFn(realtype t, N_Vector y, N_Vector fy, SUNMatrix J,
+// int JacFn(sunrealtype t, N_Vector y, N_Vector fy, SUNMatrix J,
 //           void *user_data, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3)
-static int jac(realtype t, N_Vector y, N_Vector fy, SUNMatrix J,
+static int jac(sunrealtype t, N_Vector y, N_Vector fy, SUNMatrix J,
                void* user_data, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3)
 {
   (void)t; (void)fy; (void)tmp1; (void)tmp2; (void)tmp3;
   auto* ud = static_cast<UserData*>(user_data);
 
-  const realtype k_a  = ud->k_ads;
-  const realtype k_de = ud->k_des;
-  const realtype k_r  = ud->k_rxn;
-  const realtype S    = ud->S_tot;
-  const realtype PT   = ud->P_tot;
+  const sunrealtype k_a  = ud->k_ads;
+  const sunrealtype k_de = ud->k_des;
+  const sunrealtype k_r  = ud->k_rxn;
+  const sunrealtype S    = ud->S_tot;
+  const sunrealtype PT   = ud->P_tot;
 
-  const realtype k_d  = ud->k_diff;
-  const realtype a    = ud->a;
-  const realtype R    = ud->R;
-  const realtype k_a_eff = 0.5 * k_a * (tanh((t - ud->t_ads_start) / ud->k_ads_smooth) - tanh((t - ud->t_ads_end) / ud->k_ads_smooth));
+  const sunrealtype k_d  = ud->k_diff;
+  const sunrealtype a    = ud->a;
+  const sunrealtype R    = ud->R;
+  const sunrealtype k_a_eff = 0.5 * k_a * (tanh((t - ud->t_ads_start) / ud->k_ads_smooth) - tanh((t - ud->t_ads_end) / ud->k_ads_smooth));
 
-  realtype* Y = N_VGetArrayPointer(y);
+  sunrealtype* Y = N_VGetArrayPointer(y);
 
-  const realtype X   = Y[0];
-  const realtype Xgs = Y[1];
-  const realtype Xs  = Y[2];
-  const realtype P   = Y[3];
+  const sunrealtype X   = Y[0];
+  const sunrealtype Xgs = Y[1];
+  const sunrealtype Xs  = Y[2];
+  const sunrealtype P   = Y[3];
 
   // ---- A = df/dx ----
-  const realtype A11 = -a - k_d;
-  const realtype A12 =  k_d;
+  const sunrealtype A11 = -a - k_d;
+  const sunrealtype A12 =  k_d;
 
-  const realtype A21 =  k_d;
-  const realtype A22 = -k_d - (2.0/R)*k_a_eff*(S - Xs);
-  const realtype A23 =  (2.0/R)*k_a_eff*Xgs + k_de;
+  const sunrealtype A21 =  k_d;
+  const sunrealtype A22 = -k_d - (2.0/R)*k_a_eff*(S - Xs);
+  const sunrealtype A23 =  (2.0/R)*k_a_eff*Xgs + k_de;
 
-  const realtype A32 =  k_a_eff*(S - Xs);
-  const realtype A33 = -k_a_eff*Xgs - (R/2.0)*k_de - k_r*(PT - P);
-  const realtype A34 =  k_r*Xs;
+  const sunrealtype A32 =  k_a_eff*(S - Xs);
+  const sunrealtype A33 = -k_a_eff*Xgs - (R/2.0)*k_de - k_r*(PT - P);
+  const sunrealtype A34 =  k_r*Xs;
 
-  const realtype A43 =  k_r*(PT - P);
-  const realtype A44 = -k_r*Xs;
+  const sunrealtype A43 =  k_r*(PT - P);
+  const sunrealtype A44 = -k_r*Xs;
 
   // Helper to set dense matrix entry
-  auto setJ = [&](int row, int col, realtype val) {
+  auto setJ = [&](int row, int col, sunrealtype val) {
     SM_ELEMENT_D(J, row, col) = val;
   };
 
@@ -208,10 +210,10 @@ static int jac(realtype t, N_Vector y, N_Vector fy, SUNMatrix J,
   for (int j = 0; j < NP; ++j) {
     const int b = sbase(j);
 
-    const realtype sX   = Y[b+0];
-    const realtype sXgs = Y[b+1];
-    const realtype sXs  = Y[b+2];
-    const realtype sP   = Y[b+3];
+    const sunrealtype sX   = Y[b+0];
+    const sunrealtype sXgs = Y[b+1];
+    const sunrealtype sXs  = Y[b+2];
+    const sunrealtype sP   = Y[b+3];
 
     // ---- Put diagonal A into block (b..b+3, b..b+3) ----
     setJ(b+0, b+0, A11); setJ(b+0, b+1, A12);
@@ -229,28 +231,28 @@ static int jac(realtype t, N_Vector y, N_Vector fy, SUNMatrix J,
     // col_P     = (dA/dP)*s   + db/dP
 
     // (dA/dXgs)*s = [0, (2/R)k_a*sXs, -k_a*sXs, 0]^T
-    const realtype dA_Xgs_0 = 0.0;
-    const realtype dA_Xgs_1 = (2.0/R)*k_a_eff*sXs;
-    const realtype dA_Xgs_2 = -k_a_eff*sXs;
-    const realtype dA_Xgs_3 = 0.0;
+    const sunrealtype dA_Xgs_0 = 0.0;
+    const sunrealtype dA_Xgs_1 = (2.0/R)*k_a_eff*sXs;
+    const sunrealtype dA_Xgs_2 = -k_a_eff*sXs;
+    const sunrealtype dA_Xgs_3 = 0.0;
 
     // (dA/dXs)*s = [0, (2/R)k_a*sXgs, -k_a*sXgs, 0]^T
-    const realtype dA_Xs_0 = 0.0;
-    const realtype dA_Xs_1 = (2.0/R)*k_a_eff*sXgs;
-    const realtype dA_Xs_2 = -k_a_eff*sXgs;
-    const realtype dA_Xs_3 = 0.0;
+    const sunrealtype dA_Xs_0 = 0.0;
+    const sunrealtype dA_Xs_1 = (2.0/R)*k_a_eff*sXgs;
+    const sunrealtype dA_Xs_2 = -k_a_eff*sXgs;
+    const sunrealtype dA_Xs_3 = 0.0;
 
     // (dA/dP)*s = [0, 0, k_r*sXs, -k_r*sXs]^T
-    const realtype dA_P_0 = 0.0;
-    const realtype dA_P_1 = 0.0;
-    const realtype dA_P_2 = k_r*sXs;
-    const realtype dA_P_3 = -k_r*sXs;
+    const sunrealtype dA_P_0 = 0.0;
+    const sunrealtype dA_P_1 = 0.0;
+    const sunrealtype dA_P_2 = k_r*sXs;
+    const sunrealtype dA_P_3 = -k_r*sXs;
 
     // db/d(state) depends on j:
     // initialize to 0
-    realtype db_Xgs_0=0, db_Xgs_1=0, db_Xgs_2=0, db_Xgs_3=0;
-    realtype db_Xs_0 =0, db_Xs_1 =0, db_Xs_2 =0, db_Xs_3 =0;
-    realtype db_P_0  =0, db_P_1  =0, db_P_2  =0, db_P_3  =0;
+    sunrealtype db_Xgs_0=0, db_Xgs_1=0, db_Xgs_2=0, db_Xgs_3=0;
+    sunrealtype db_Xs_0 =0, db_Xs_1 =0, db_Xs_2 =0, db_Xs_3 =0;
+    sunrealtype db_P_0  =0, db_P_1  =0, db_P_2  =0, db_P_3  =0;
 
     switch (j) {
       case 0: // k_ads: b = [0, -(2/R)Xgs(S-Xs), Xgs(S-Xs), 0]
@@ -339,10 +341,10 @@ int main()
   ud.k_ads_smooth = 2.645834006658198;
 
   // Initial conditions for x:
-  realtype X0=X_in, Xgs0=X_in, Xs0=0, P0=0;
+  sunrealtype X0=X_in, Xgs0=X_in, Xs0=0, P0=0;
 
   SUNContext sunctx = nullptr;
-  if (SUNContext_Create(nullptr, &sunctx) != 0) {
+  if (SUNContext_Create(SUN_COMM_NULL, &sunctx) != 0) {
     std::fprintf(stderr, "SUNContext_Create failed\n");
     return 1;
   }
@@ -350,7 +352,7 @@ int main()
 
   // Create N_Vector y0
   N_Vector y = N_VNew_Serial(N, sunctx);
-  realtype* Y = N_VGetArrayPointer(y);
+  sunrealtype* Y = N_VGetArrayPointer(y);
   for (int i=0;i<N;++i) Y[i]=0.0;
   Y[0]=X0; Y[1]=Xgs0; Y[2]=Xs0; Y[3]=P0;
   // Sensitivities s(0)=0 already set.
@@ -359,7 +361,7 @@ int main()
   void* cvode_mem = CVodeCreate(CV_BDF, sunctx);  // stiff -> BDF
   if (!cvode_mem) { std::fprintf(stderr,"CVodeCreate failed\n"); return 1; }
 
-  realtype t0 = 0.0;
+  sunrealtype t0 = 0.0;
   int flag = CVodeInit(cvode_mem, rhs, t0, y);
   if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeInit failed\n"); return 1; }
 
@@ -369,8 +371,8 @@ int main()
   if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeSetUserData failed\n"); return 1; }
 
   // tolerances
-  realtype reltol = 1e-8;
-  realtype abstol = 1e-10;
+  sunrealtype reltol = 1e-8;
+  sunrealtype abstol = 1e-10;
   flag = CVodeSStolerances(cvode_mem, reltol, abstol);
   if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeSStolerances failed\n"); return 1; }
 
@@ -390,14 +392,14 @@ int main()
   ts[0] = 0.0;
   Xs[0] = X0;
   for (long i = 1; i < N_t; i ++) {
-    realtype t;
-    const realtype tout =static_cast<double>(i) * 1.0;
+    sunrealtype t;
+    const sunrealtype tout =static_cast<double>(i) * 1.0;
     flag = CVode(cvode_mem, tout, y, &t, CV_NORMAL);
     if (flag < 0) { std::fprintf(stderr,"CVode failed, flag=%d\n", flag); return 1; }
 
     ts[i] = tout;
 
-    const realtype *ydata = N_VGetArrayPointer(y);
+    const sunrealtype *ydata = N_VGetArrayPointer(y);
     Xs[i] = ydata[0];
   }
 
@@ -409,8 +411,8 @@ int main()
   }
 
   // Integrate to some time t1
-  // realtype t = t0;
-  // realtype t1 = 500.0;
+  // sunrealtype t = t0;
+  // sunrealtype t1 = 500.0;
   // flag = CVode(cvode_mem, t1, y, &t, CV_NORMAL);
   // if (flag < 0) { std::fprintf(stderr,"CVode failed, flag=%d\n", flag); return 1; }
 
