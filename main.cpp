@@ -27,6 +27,9 @@ struct UserData {
   realtype a;       // F/V
   realtype X_in;    // inlet
   realtype R;       // radius (constant)
+  realtype t_ads_start;
+  realtype t_ads_end;
+  realtype k_ads_smooth;
 };
 
 // Parameter count
@@ -53,6 +56,7 @@ static int rhs(realtype t, N_Vector y, N_Vector ydot, void* user_data)
   const realtype a    = ud->a;
   const realtype Xin  = ud->X_in;
   const realtype R    = ud->R;
+  const realtype k_a_eff = 0.5 * k_a * (tanh((t - ud->t_ads_start) / ud->k_ads_smooth) - tanh((t - ud->t_ads_end) / ud->k_ads_smooth));
 
   realtype* Y  = N_VGetArrayPointer(y);
   realtype* dY = N_VGetArrayPointer(ydot);
@@ -65,8 +69,8 @@ static int rhs(realtype t, N_Vector y, N_Vector ydot, void* user_data)
 
   // ---- f(x,theta) ----
   const realtype f1 = a*(Xin - X) - k_d*(X - Xgs);
-  const realtype f2 = k_d*(X - Xgs) - (2.0/R)*k_a*Xgs*(S - Xs) + k_de*Xs;
-  const realtype f3 = k_a*Xgs*(S - Xs) - (R/2.0)*k_de*Xs - k_r*Xs*(PT - P);
+  const realtype f2 = k_d*(X - Xgs) - (2.0/R)*k_a_eff*Xgs*(S - Xs) + k_de*Xs;
+  const realtype f3 = k_a_eff*Xgs*(S - Xs) - (R/2.0)*k_de*Xs - k_r*Xs*(PT - P);
   const realtype f4 = k_r*Xs*(PT - P);
 
   dY[0] = f1;
@@ -79,11 +83,11 @@ static int rhs(realtype t, N_Vector y, N_Vector ydot, void* user_data)
   const realtype A12 =  k_d;
 
   const realtype A21 =  k_d;
-  const realtype A22 = -k_d - (2.0/R)*k_a*(S - Xs);
-  const realtype A23 =  (2.0/R)*k_a*Xgs + k_de;
+  const realtype A22 = -k_d - (2.0/R)*k_a_eff*(S - Xs);
+  const realtype A23 =  (2.0/R)*k_a_eff*Xgs + k_de;
 
-  const realtype A32 =  k_a*(S - Xs);
-  const realtype A33 = -k_a*Xgs - (R/2.0)*k_de - k_r*(PT - P);
+  const realtype A32 =  k_a_eff*(S - Xs);
+  const realtype A33 = -k_a_eff*Xgs - (R/2.0)*k_de - k_r*(PT - P);
   const realtype A34 =  k_r*Xs;
 
   const realtype A43 =  k_r*(PT - P);
@@ -120,8 +124,8 @@ static int rhs(realtype t, N_Vector y, N_Vector ydot, void* user_data)
         b3 =  Xs*(PT - P);
         break;
       case 3: // S_tot
-        b1 = -(2.0/R)*k_a*Xgs;
-        b2 =  k_a*Xgs;
+        b1 = -(2.0/R)*k_a_eff*Xgs;
+        b2 =  k_a_eff*Xgs;
         break;
       case 4: // P_tot
         b2 = -k_r*Xs;
@@ -159,6 +163,7 @@ static int jac(realtype t, N_Vector y, N_Vector fy, SUNMatrix J,
   const realtype k_d  = ud->k_diff;
   const realtype a    = ud->a;
   const realtype R    = ud->R;
+  const realtype k_a_eff = 0.5 * k_a * (tanh((t - ud->t_ads_start) / ud->k_ads_smooth) - tanh((t - ud->t_ads_end) / ud->k_ads_smooth));
 
   realtype* Y = N_VGetArrayPointer(y);
 
@@ -172,11 +177,11 @@ static int jac(realtype t, N_Vector y, N_Vector fy, SUNMatrix J,
   const realtype A12 =  k_d;
 
   const realtype A21 =  k_d;
-  const realtype A22 = -k_d - (2.0/R)*k_a*(S - Xs);
-  const realtype A23 =  (2.0/R)*k_a*Xgs + k_de;
+  const realtype A22 = -k_d - (2.0/R)*k_a_eff*(S - Xs);
+  const realtype A23 =  (2.0/R)*k_a_eff*Xgs + k_de;
 
-  const realtype A32 =  k_a*(S - Xs);
-  const realtype A33 = -k_a*Xgs - (R/2.0)*k_de - k_r*(PT - P);
+  const realtype A32 =  k_a_eff*(S - Xs);
+  const realtype A33 = -k_a_eff*Xgs - (R/2.0)*k_de - k_r*(PT - P);
   const realtype A34 =  k_r*Xs;
 
   const realtype A43 =  k_r*(PT - P);
@@ -225,14 +230,14 @@ static int jac(realtype t, N_Vector y, N_Vector fy, SUNMatrix J,
 
     // (dA/dXgs)*s = [0, (2/R)k_a*sXs, -k_a*sXs, 0]^T
     const realtype dA_Xgs_0 = 0.0;
-    const realtype dA_Xgs_1 = (2.0/R)*k_a*sXs;
-    const realtype dA_Xgs_2 = -k_a*sXs;
+    const realtype dA_Xgs_1 = (2.0/R)*k_a_eff*sXs;
+    const realtype dA_Xgs_2 = -k_a_eff*sXs;
     const realtype dA_Xgs_3 = 0.0;
 
     // (dA/dXs)*s = [0, (2/R)k_a*sXgs, -k_a*sXgs, 0]^T
     const realtype dA_Xs_0 = 0.0;
-    const realtype dA_Xs_1 = (2.0/R)*k_a*sXgs;
-    const realtype dA_Xs_2 = -k_a*sXgs;
+    const realtype dA_Xs_1 = (2.0/R)*k_a_eff*sXgs;
+    const realtype dA_Xs_2 = -k_a_eff*sXgs;
     const realtype dA_Xs_3 = 0.0;
 
     // (dA/dP)*s = [0, 0, k_r*sXs, -k_r*sXs]^T
@@ -265,8 +270,8 @@ static int jac(realtype t, N_Vector y, N_Vector fy, SUNMatrix J,
         db_P_3   = -Xs;
         break;
       case 3: // S_tot: b = [0, -(2/R)k_a Xgs, k_a Xgs, 0]
-        db_Xgs_1 = -(2.0/R)*k_a;
-        db_Xgs_2 =  k_a;
+        db_Xgs_1 = -(2.0/R)*k_a_eff;
+        db_Xgs_2 =  k_a_eff;
         break;
       case 4: // P_tot: b = [0,0, -k_r Xs, +k_r Xs]
         db_Xs_2  = -k_r;
@@ -309,20 +314,32 @@ static int jac(realtype t, N_Vector y, N_Vector fy, SUNMatrix J,
 int main()
 {
   // --- user data (example numbers; replace with yours) ---
-  UserData ud{};
-  ud.k_ads  = 1.0;
-  ud.k_des  = 0.1;
-  ud.k_rxn  = 0.05;
-  ud.S_tot  = 1.0;
-  ud.P_tot  = 1.0;
 
-  ud.k_diff = 0.2;     // known
-  ud.a      = 0.3;     // F/V
-  ud.X_in   = 1.0;
-  ud.R      = 1.0;
+  const double Di = 40.0;
+  const double R = 1.56 / 2.0;
+  const double L = 2.0;
+  const double V = M_PI * R * R * L;
+  const double F = 2.493333333333333 * 760.0 / 1.965;
+  const double X_in = 29424160260.695;
+
+  UserData ud{};
+  ud.k_ads  = 3.827187367718609e-12;
+  ud.k_des  = 0.04253902879091293;
+  ud.k_rxn  = 2.0493834170301142e-16;
+  ud.S_tot  = 34482079719017.1;
+  ud.P_tot  = 88448995701717.02;
+
+  ud.k_diff = 3.66 * Di / R / R;     // known
+  ud.a      = F / V;     // F/V
+  ud.X_in   = X_in;
+  ud.R      = R;
+
+  ud.t_ads_start = 266.3915963445649;
+  ud.t_ads_end = 543.5885793335225;
+  ud.k_ads_smooth = 2.645834006658198;
 
   // Initial conditions for x:
-  realtype X0=1.0, Xgs0=0, Xs0=0, P0=0;
+  realtype X0=X_in, Xgs0=X_in, Xs0=0, P0=0;
 
   SUNContext sunctx = nullptr;
   if (SUNContext_Create(nullptr, &sunctx) != 0) {
@@ -367,7 +384,7 @@ int main()
   flag = CVodeSetJacFn(cvode_mem, jac);
   if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeSetJacFn failed\n"); return 1; }
 
-  const long N_t = 500;
+  const long N_t = 800;
   std::vector<double> ts(N_t), Xs(N_t);
 
   ts[0] = 0.0;
