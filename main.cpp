@@ -13,12 +13,12 @@ using json = nlohmann::json;
 
 struct ResidualFunctor final : public ceres::CostFunction {
     ResidualFunctor(
-        double t0_exp,              // Time of first experimental point
-        double dt_exp,              // Experimental time increment
-        std::vector<double> X_exp   // Experimental concentrations
+        double t0_exp,                                      // Time of first experimental point
+        Model::FixedParameters const & fixed_parameters,    // Experimental parameters that are fixed
+        std::vector<double> X_exp                           // Experimental concentrations
     )
         : t0_exp_(t0_exp)
-        , dt_exp_(dt_exp)
+        , fixed_parameters_(fixed_parameters)
         , X_exp_(std::move(X_exp))
     {
         const int M = static_cast<int>(X_exp_.size());
@@ -38,19 +38,7 @@ struct ResidualFunctor final : public ceres::CostFunction {
             theta[0], theta[1], theta[2], theta[3], theta[4]
         };
 
-        Model::FixedParameters fixed_parameters {
-            .Di = 40.0,
-            .R = 1.56 / 2.0,
-            .L = 2.0,
-            .F = 2.493333333333333 * 760.0 / 1.965,
-            .X_in = 29424160260.695,
-            .t_ads_start =  266.3915963445649,
-            .t_ads_end = 543.5885793335225,
-            .k_ads_smooth = 2.645834006658198,
-            .dt = dt_exp_
-        };
-
-        Model model(fixed_parameters, fitted_parameters);
+        Model model(fixed_parameters_, fitted_parameters);
 
         // Skip until the first experimental point
         while (model.get_t() <= t0_exp_)
@@ -88,9 +76,64 @@ struct ResidualFunctor final : public ceres::CostFunction {
 
 private:
     const double t0_exp_;
-    const double dt_exp_;
+    const Model::FixedParameters fixed_parameters_;
     const std::vector<double> X_exp_;
 };
+
+struct InputData {
+    double t0_exp;
+    Model::FixedParameters fixed_parameters;
+    Model::FittedParameters initial_guess;
+    std::vector<double> t_exp, X_exp;
+};
+
+InputData load_input_data(std::filesystem::path const & input_file_path) {
+
+    std::ifstream ifs(input_file_path);
+
+    if (!ifs.good()) {
+        fmt::println(stderr, "Error reading experimental data from {}", input_file_path.string());
+        exit(EXIT_FAILURE);
+    }
+
+    json data = json::parse(ifs);
+
+    auto t_exp = data.at("experimental_data").at("t_exp").get<std::vector<double>>();
+    auto X_exp = data.at("experimental_data").at("X_exp").get<std::vector<double>>();
+
+    double t0_exp = t_exp[0];
+    double dt_exp = 0.0;
+    for (long i = 1; i < t_exp.size(); i ++) {
+        dt_exp += t_exp[i] - t_exp[i-1];
+    }
+    dt_exp /= static_cast<double>(t_exp.size() - 1);
+
+    InputData input_data{
+        .t0_exp = t0_exp,
+        .fixed_parameters = {
+            .Di = 40.0,
+            .R = data.at("R").get<double>(),
+            .L = data.at("L").get<double>(),
+            .F = data.at("F").get<double>() * 760.0 / data.at("pressure").get<double>(),
+            .X_in = data.at("X_in").get<double>(),
+            .t_ads_start = data.at("t_ads_start").get<double>(),
+            .t_ads_end = data.at("t_ads_end").get<double>(),
+            .k_ads_smooth = 2.0,
+            .dt = dt_exp
+        },
+        .initial_guess = {
+            .k_ads = data.at("initial_guess").at("k_ads").get<double>(),
+            .k_des = data.at("initial_guess").at("k_des").get<double>(),
+            .k_rxn = data.at("initial_guess").at("k_rxn").get<double>(),
+            .S_tot = data.at("initial_guess").at("S_tot").get<double>(),
+            .P_tot = data.at("initial_guess").at("Y_tot").get<double>()
+        },
+        .t_exp = data.at("experimental_data").at("t_exp").get<std::vector<double>>(),
+        .X_exp = data.at("experimental_data").at("X_exp").get<std::vector<double>>()
+    };
+
+    return input_data;
+}
 
 std::pair<std::vector<double>, std::vector<std::array<double, 5>>> solve_model(
     Model::FixedParameters const & fixed_parameters,
@@ -119,54 +162,37 @@ std::pair<std::vector<double>, std::vector<std::array<double, 5>>> solve_model(
 
 int main() {
 
-    std::ifstream ifs("../experimental_data.json");
+    // std::ifstream ifs("../experimental_data.json");
+    //
+    // if (!ifs.good()) {
+    //     fmt::println(stderr, "Error reading experimental data");
+    //     exit(EXIT_FAILURE);
+    // }
+    //
+    // json data = json::parse(ifs);
+    //
+    //
+    // auto t_exp = data.at("t_exp").get<std::vector<double>>();
+    // auto X_exp = data.at("X_exp").get<std::vector<double>>();
 
-    if (!ifs.good()) {
-        fmt::println(stderr, "Error reading experimental data");
-        exit(EXIT_FAILURE);
-    }
+    auto input_data = load_input_data("../uptake_curve_processing/NaCl-2/drift_corrected.json");
 
-    json data = json::parse(ifs);
-
-
-    auto t_exp = data.at("t_exp").get<std::vector<double>>();
-    auto X_exp = data.at("X_exp").get<std::vector<double>>();
-
-    double t0_exp = t_exp[0];
-    double dt_exp = 0.0;
-    for (long i = 1; i < t_exp.size(); i ++) {
-        dt_exp += t_exp[i] - t_exp[i-1];
-    }
-    dt_exp /= static_cast<double>(t_exp.size() - 1);
-
-    auto * cost = new ResidualFunctor(t0_exp, dt_exp, X_exp);
+    auto * cost = new ResidualFunctor(input_data.t0_exp, input_data.fixed_parameters, input_data.X_exp);
 
     // Initial guesses
     double theta[] = {
-            2.628413090171913e-12,  // k_ads
-            0.02358734401037852,    // k_des
-            1.3703757029773324e-17, // k_rxn
-            58264568110461.61,      // S0
-            96507325673713.16       // Y0
+            input_data.initial_guess.k_ads,     // k_ads
+            input_data.initial_guess.k_des,     // k_des
+            input_data.initial_guess.k_rxn,     // k_rxn
+            input_data.initial_guess.S_tot,     // S0
+            input_data.initial_guess.P_tot      // Y0
     };
 
     Model::FittedParameters fitted_parameters_0 {
             theta[0], theta[1], theta[2], theta[3], theta[4]
     };
 
-    Model::FixedParameters fixed_parameters {
-            .Di = 40.0,
-            .R = 1.56 / 2.0,
-            .L = 2.0,
-            .F = 2.493333333333333 * 760.0 / 1.965,
-            .X_in = 29424160260.695,
-            .t_ads_start =  266.3915963445649,
-            .t_ads_end = 543.5885793335225,
-            .k_ads_smooth = 2.0,
-            .dt = dt_exp
-    };
-
-    auto [X0, dX0] = solve_model(fixed_parameters, fitted_parameters_0, t_exp.size());
+    auto [X0, dX0] = solve_model(input_data.fixed_parameters, fitted_parameters_0, input_data.t_exp.size());
 
     ceres::Problem problem;
     problem.AddResidualBlock(cost, nullptr, theta);
@@ -189,7 +215,7 @@ int main() {
         theta[0], theta[1], theta[2], theta[3], theta[4]
 };
 
-    auto [X, dX] = solve_model(fixed_parameters, fitted_parameters, t_exp.size());
+    auto [X, dX] = solve_model(input_data.fixed_parameters, fitted_parameters, input_data.t_exp.size());
 
     json out_data;
     out_data["X0"] = X0;
