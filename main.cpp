@@ -92,6 +92,31 @@ private:
     const std::vector<double> X_exp_;
 };
 
+std::pair<std::vector<double>, std::vector<std::array<double, 5>>> solve_model(
+    Model::FixedParameters const & fixed_parameters,
+    Model::FittedParameters const & fitted_parameters,
+    const long N_t) {
+
+    Model model(fixed_parameters, fitted_parameters);
+
+    std::vector<double> ts(N_t), Xs(N_t);
+    std::vector<std::array<double, 5>> dXs(N_t, std::array<double, 5>{});
+
+    ts[0] = 0.0;
+    Xs[0] = fixed_parameters.X_in;
+    for (long i = 1; i < N_t; i ++) {
+
+        model.do_step();
+
+        ts[i] = model.get_t();
+        Xs[i] = model.get_Y()[0];
+        for (int j = 0; j < 5; j ++)
+            dXs[i][j] = model.get_Y()[Model::sbase(j)];
+    }
+
+    return std::make_pair(Xs, dXs);
+}
+
 int main() {
 
     std::ifstream ifs("../experimental_data.json");
@@ -120,28 +145,28 @@ int main() {
     double theta[] = {
             2.628413090171913e-12,  // k_ads
             0.02358734401037852,    // k_des
-            1.3703757029773324e-16, // k_rxn
+            1.3703757029773324e-17, // k_rxn
             58264568110461.61,      // S0
             96507325673713.16       // Y0
     };
 
-//    Model::FittedParameters fitted_parameters_0 {
-//            theta[0], theta[1], theta[2], theta[3], theta[4]
-//    };
-//
-//    Model::FixedParameters fixed_parameters {
-//            .Di = 40.0,
-//            .R = 1.56 / 2.0,
-//            .L = 2.0,
-//            .F = 2.493333333333333 * 760.0 / 1.965,
-//            .X_in = 29424160260.695,
-//            .t_ads_start =  266.3915963445649,
-//            .t_ads_end = 543.5885793335225,
-//            .k_ads_smooth = 2.645834006658198,
-//            .dt = dt_exp
-//    };
+    Model::FittedParameters fitted_parameters_0 {
+            theta[0], theta[1], theta[2], theta[3], theta[4]
+    };
 
-//    Model model(fixed_parameters, fitted_parameters_0);
+    Model::FixedParameters fixed_parameters {
+            .Di = 40.0,
+            .R = 1.56 / 2.0,
+            .L = 2.0,
+            .F = 2.493333333333333 * 760.0 / 1.965,
+            .X_in = 29424160260.695,
+            .t_ads_start =  266.3915963445649,
+            .t_ads_end = 543.5885793335225,
+            .k_ads_smooth = 2.0,
+            .dt = dt_exp
+    };
+
+    auto [X0, dX0] = solve_model(fixed_parameters, fitted_parameters_0, t_exp.size());
 
     ceres::Problem problem;
     problem.AddResidualBlock(cost, nullptr, theta);
@@ -159,6 +184,25 @@ int main() {
     for (long i = 0; i < 5; i ++) {
         fmt::println("{}", theta[i]);
     }
+
+    Model::FittedParameters fitted_parameters {
+        theta[0], theta[1], theta[2], theta[3], theta[4]
+};
+
+    auto [X, dX] = solve_model(fixed_parameters, fitted_parameters, t_exp.size());
+
+    json out_data;
+    out_data["X0"] = X0;
+    out_data["X"] = X;
+
+    std::ofstream ofs("fitted_curve.json");
+
+    if (!ofs.good()) {
+        fmt::println(stderr, "Error writing output");
+        exit(EXIT_FAILURE);
+    }
+
+    ofs << out_data.dump(4);
 
     // Model::FixedParameters fixed_params{
     //     .Di = 40.0,
@@ -180,23 +224,7 @@ int main() {
     //     .P_tot  = 88448995701717.02
     // };
     //
-    // Model model(fixed_params, fitted_params);
-    //
-    // const long N_t = 800;
-    // std::vector<double> ts(N_t), Xs(N_t);
-    // std::vector<std::array<double, 5>> dXs(N_t, std::array<double, 5>{});
-    //
-    // ts[0] = 0.0;
-    // Xs[0] = fixed_params.X_in;
-    // for (long i = 1; i < N_t; i ++) {
-    //
-    //     model.do_step();
-    //
-    //     ts[i] = model.get_t();
-    //     Xs[i] = model.get_Y()[0];
-    //     for (int j = 0; j < 5; j ++)
-    //         dXs[i][j] = model.get_Y()[Model::sbase(j)];
-    // }
+
     //
     // std::ofstream ofs("out_data.csv");
     //
