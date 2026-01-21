@@ -5,7 +5,11 @@
 #include <fmt/ostream.h>
 #include <ceres/ceres.h>
 
+#include <nlohmann/json.hpp>
+
 #include "model.h"
+
+using json = nlohmann::json;
 
 struct ResidualFunctor final : public ceres::CostFunction {
     ResidualFunctor(
@@ -60,6 +64,8 @@ struct ResidualFunctor final : public ceres::CostFunction {
 
             for (long j = 0; j < 5; j ++)
                 dX[i][j] = model.get_Y()[Model::sbase(j)];
+
+            model.do_step();
         }
 
         // Residuals: r_i = X_model(t_i) - X_obs_i
@@ -87,6 +93,73 @@ private:
 };
 
 int main() {
+
+    std::ifstream ifs("../experimental_data.json");
+
+    if (!ifs.good()) {
+        fmt::println(stderr, "Error reading experimental data");
+        exit(EXIT_FAILURE);
+    }
+
+    json data = json::parse(ifs);
+
+
+    auto t_exp = data.at("t_exp").get<std::vector<double>>();
+    auto X_exp = data.at("X_exp").get<std::vector<double>>();
+
+    double t0_exp = t_exp[0];
+    double dt_exp = 0.0;
+    for (long i = 1; i < t_exp.size(); i ++) {
+        dt_exp += t_exp[i] - t_exp[i-1];
+    }
+    dt_exp /= static_cast<double>(t_exp.size() - 1);
+
+    auto * cost = new ResidualFunctor(t0_exp, dt_exp, X_exp);
+
+    // Initial guesses
+    double theta[] = {
+            2.628413090171913e-12,  // k_ads
+            0.02358734401037852,    // k_des
+            1.3703757029773324e-16, // k_rxn
+            58264568110461.61,      // S0
+            96507325673713.16       // Y0
+    };
+
+//    Model::FittedParameters fitted_parameters_0 {
+//            theta[0], theta[1], theta[2], theta[3], theta[4]
+//    };
+//
+//    Model::FixedParameters fixed_parameters {
+//            .Di = 40.0,
+//            .R = 1.56 / 2.0,
+//            .L = 2.0,
+//            .F = 2.493333333333333 * 760.0 / 1.965,
+//            .X_in = 29424160260.695,
+//            .t_ads_start =  266.3915963445649,
+//            .t_ads_end = 543.5885793335225,
+//            .k_ads_smooth = 2.645834006658198,
+//            .dt = dt_exp
+//    };
+
+//    Model model(fixed_parameters, fitted_parameters_0);
+
+    ceres::Problem problem;
+    problem.AddResidualBlock(cost, nullptr, theta);
+
+    ceres::Solver::Options options;
+    options.linear_solver_type = ceres::DENSE_QR;
+    options.minimizer_progress_to_stdout = true;
+    // If your EvaluateAll is not thread-safe (CVODE usually isn't), force 1 thread:
+    options.num_threads = 1;
+
+    ceres::Solver::Summary summary;
+    ceres::Solve(options, &problem, &summary);
+    std::cout << summary.BriefReport() << "\n";
+
+    for (long i = 0; i < 5; i ++) {
+        fmt::println("{}", theta[i]);
+    }
+
     // Model::FixedParameters fixed_params{
     //     .Di = 40.0,
     //     .R = 1.56 / 2.0,
