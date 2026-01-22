@@ -99,7 +99,6 @@ InputData load_input_data(std::filesystem::path const & input_file_path) {
     json data = json::parse(ifs);
 
     auto t_exp = data.at("experimental_data").at("t_exp").get<std::vector<double>>();
-    auto X_exp = data.at("experimental_data").at("X_exp").get<std::vector<double>>();
 
     double t0_exp = t_exp[0];
     double dt_exp = 0.0;
@@ -160,22 +159,17 @@ std::pair<std::vector<double>, std::vector<std::array<double, 5>>> solve_model(
     return std::make_pair(Xs, dXs);
 }
 
-int main() {
+int main(int argc, char ** argv) {
 
-    // std::ifstream ifs("../experimental_data.json");
-    //
-    // if (!ifs.good()) {
-    //     fmt::println(stderr, "Error reading experimental data");
-    //     exit(EXIT_FAILURE);
-    // }
-    //
-    // json data = json::parse(ifs);
-    //
-    //
-    // auto t_exp = data.at("t_exp").get<std::vector<double>>();
-    // auto X_exp = data.at("X_exp").get<std::vector<double>>();
+    if (argc < 2) {
+        fmt::println(stderr, "Input file path must be provided as an argument");
+        return EXIT_FAILURE;
+    }
 
-    auto input_data = load_input_data("../uptake_curve_processing/NaCl-2/drift_corrected.json");
+    std::filesystem::path input_file_path(argv[1]);
+    std::filesystem::path output_file_path = input_file_path.parent_path() / "fitted.json";
+
+    auto input_data = load_input_data(input_file_path);
 
     auto * cost = new ResidualFunctor(input_data.t0_exp, input_data.fixed_parameters, input_data.X_exp);
 
@@ -207,10 +201,6 @@ int main() {
     ceres::Solve(options, &problem, &summary);
     std::cout << summary.BriefReport() << "\n";
 
-    for (long i = 0; i < 5; i ++) {
-        fmt::println("{}", theta[i]);
-    }
-
     Model::FittedParameters fitted_parameters {
         theta[0], theta[1], theta[2], theta[3], theta[4]
 };
@@ -218,13 +208,18 @@ int main() {
     auto [X, dX] = solve_model(input_data.fixed_parameters, fitted_parameters, input_data.t_exp.size());
 
     json out_data;
-    out_data["X0"] = X0;
-    out_data["X"] = X;
+    out_data["solution"]["k_ads"] = theta[0];
+    out_data["solution"]["k_des"] = theta[1];
+    out_data["solution"]["k_rxn"] = theta[2];
+    out_data["solution"]["S_tot"] = theta[3];
+    out_data["solution"]["Y_tot"] = theta[4];
+    out_data["fitted_data"]["X0"] = X0;
+    out_data["fitted_data"]["X"] = X;
 
-    std::ofstream ofs("fitted_curve.json");
+    std::ofstream ofs(output_file_path);
 
     if (!ofs.good()) {
-        fmt::println(stderr, "Error writing output");
+        fmt::println(stderr, "Error writing output to {}", output_file_path.string());
         exit(EXIT_FAILURE);
     }
 

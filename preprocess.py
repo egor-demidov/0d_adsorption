@@ -8,7 +8,7 @@ import json
 
 
 file_name = 'uptake_curve_processing/uptake_curves.xlsx'
-sheet_name = 'NaCl-2'
+sheet_name = 'NaCl-6'
 # median_filter_kernel = 51
 reactor_diameter = 1.56 # cm
 reactor_cross_section = np.pi * (reactor_diameter / 2.0) ** 2.0

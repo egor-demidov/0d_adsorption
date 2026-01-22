@@ -1,5 +1,8 @@
 *
 
+!uptake_curve_processing/
+!uptake_curve_processing/**
+
 !.gitignore
 !CMakeLists.txt
 !*.cpp
