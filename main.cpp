@@ -10,6 +10,7 @@
 #include "model.h"
 
 using json = nlohmann::json;
+using ordered_json = nlohmann::ordered_json;
 
 struct ResidualFunctor final : public ceres::CostFunction {
     ResidualFunctor(
@@ -191,6 +192,13 @@ int main(int argc, char ** argv) {
     ceres::Problem problem;
     problem.AddResidualBlock(cost, nullptr, theta);
 
+    // Add constraints
+    problem.SetParameterLowerBound(theta, 0, 0.0);
+    problem.SetParameterLowerBound(theta, 1, 0.0);
+    problem.SetParameterLowerBound(theta, 2, 0.0);
+    problem.SetParameterLowerBound(theta, 3, 0.0);
+    problem.SetParameterLowerBound(theta, 4, 0.0);
+
     ceres::Solver::Options options;
     options.linear_solver_type = ceres::DENSE_QR;
     options.minimizer_progress_to_stdout = true;
@@ -207,7 +215,7 @@ int main(int argc, char ** argv) {
 
     auto [X, dX] = solve_model(input_data.fixed_parameters, fitted_parameters, input_data.t_exp.size());
 
-    json out_data;
+    ordered_json out_data;
     out_data["solution"]["k_ads"] = theta[0];
     out_data["solution"]["k_des"] = theta[1];
     out_data["solution"]["k_rxn"] = theta[2];
