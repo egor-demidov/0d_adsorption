@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import json
 
 
-DATASET = 'NaCl-6'
+DATASET = 'NaCl-2'
 
 with open(f'uptake_curve_processing/{DATASET}/drift_corrected.json', 'r') as f:
     exp_data = json.load(f)

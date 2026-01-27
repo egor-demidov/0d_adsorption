@@ -128,36 +128,36 @@ InputData load_input_data(std::filesystem::path const & input_file_path) {
             .S_tot = data.at("initial_guess").at("S_tot").get<double>(),
             .P_tot = data.at("initial_guess").at("Y_tot").get<double>()
         },
-        .t_exp = data.at("experimental_data").at("t_exp").get<std::vector<double>>(),
+        .t_exp = t_exp,
         .X_exp = data.at("experimental_data").at("X_exp").get<std::vector<double>>()
     };
 
     return input_data;
 }
 
-std::pair<std::vector<double>, std::vector<std::array<double, 5>>> solve_model(
+std::array<std::vector<double>, 10> solve_model(
     Model::FixedParameters const & fixed_parameters,
     Model::FittedParameters const & fitted_parameters,
     const long N_t) {
 
     Model model(fixed_parameters, fitted_parameters);
 
-    std::vector<double> ts(N_t), Xs(N_t);
-    std::vector<std::array<double, 5>> dXs(N_t, std::array<double, 5>{});
+    std::array<std::vector<double>, 10> X;
+    std::fill(X.begin(), X.end(), std::vector<double>(N_t));
 
-    ts[0] = 0.0;
-    Xs[0] = fixed_parameters.X_in;
-    for (long i = 1; i < N_t; i ++) {
+    for (long i = 0; i < N_t; i ++) {
 
         model.do_step();
 
-        ts[i] = model.get_t();
-        Xs[i] = model.get_Y()[0];
+        for (int j = 0; j < 4; j ++)
+            X[j][i] = model.get_Y()[j];
         for (int j = 0; j < 5; j ++)
-            dXs[i][j] = model.get_Y()[Model::sbase(j)];
+            X[j+4][i] = model.get_Y()[Model::sbase(j)];
+
+        X[9][i] = model.f_of_t(model.get_t());
     }
 
-    return std::make_pair(Xs, dXs);
+    return X;
 }
 
 int main(int argc, char ** argv) {
@@ -187,7 +187,7 @@ int main(int argc, char ** argv) {
             theta[0], theta[1], theta[2], theta[3], theta[4]
     };
 
-    auto [X0, dX0] = solve_model(input_data.fixed_parameters, fitted_parameters_0, input_data.t_exp.size());
+    auto X0 = solve_model(input_data.fixed_parameters, fitted_parameters_0, input_data.t_exp.size());
 
     ceres::Problem problem;
     problem.AddResidualBlock(cost, nullptr, theta);
@@ -213,7 +213,7 @@ int main(int argc, char ** argv) {
         theta[0], theta[1], theta[2], theta[3], theta[4]
 };
 
-    auto [X, dX] = solve_model(input_data.fixed_parameters, fitted_parameters, input_data.t_exp.size());
+    auto X = solve_model(input_data.fixed_parameters, fitted_parameters, input_data.t_exp.size());
 
     ordered_json out_data;
     out_data["solution"]["k_ads"] = theta[0];
@@ -221,8 +221,27 @@ int main(int argc, char ** argv) {
     out_data["solution"]["k_rxn"] = theta[2];
     out_data["solution"]["S_tot"] = theta[3];
     out_data["solution"]["Y_tot"] = theta[4];
-    out_data["fitted_data"]["X0"] = X0;
-    out_data["fitted_data"]["X"] = X;
+    out_data["fitted_data"]["X0"] = X0[0];
+    out_data["fitted_data"]["X"] = X[0];
+
+    std::vector<double> exact_uptake_rate(input_data.t_exp.size()),
+        initial_approx(input_data.t_exp.size()),
+        ss_approx(input_data.t_exp.size());
+
+    for (int i = 0; i < exact_uptake_rate.size(); i ++) {
+
+        const double k_diff =  3.66 * input_data.fixed_parameters.Di / input_data.fixed_parameters.R / input_data.fixed_parameters.R;
+
+        exact_uptake_rate[i] = k_diff * (X[0][i] - X[1][i]);
+
+        initial_approx[i] = k_diff * theta[0] * theta[3] / (k_diff + theta[0] * theta[3]) * input_data.fixed_parameters.X_in;
+
+        ss_approx[i] = input_data.fixed_parameters.R / 2.0 * theta[2] * theta[4] * theta[3];
+    }
+
+    out_data["uptake_rates"]["exact"] = exact_uptake_rate;
+    out_data["uptake_rates"]["initial_approx"] = initial_approx;
+    out_data["uptake_rates"]["ss_approx"] = ss_approx;
 
     std::ofstream ofs(output_file_path);
 
