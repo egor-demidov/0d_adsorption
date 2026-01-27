@@ -9,6 +9,8 @@ find_package(fmt CONFIG REQUIRED)
 find_package(Ceres CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
+add_compile_definitions(_USE_MATH_DEFINES)
+
 add_executable(0d_adsorption main.cpp
         model.cpp
         model.h)

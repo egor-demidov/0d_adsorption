@@ -232,9 +232,9 @@ int main(int argc, char ** argv) {
 
         const double k_diff =  3.66 * input_data.fixed_parameters.Di / input_data.fixed_parameters.R / input_data.fixed_parameters.R;
 
-        exact_uptake_rate[i] = k_diff * (X[0][i] - X[1][i]);
+        exact_uptake_rate[i] = theta[0] * X[9][i] * X[1][i] * (theta[3] - X[2][i]) - input_data.fixed_parameters.R / 2.0 * theta[1] * X[2][i];
 
-        initial_approx[i] = k_diff * theta[0] * theta[3] / (k_diff + theta[0] * theta[3]) * input_data.fixed_parameters.X_in;
+        initial_approx[i] = theta[0] * theta[3] * input_data.fixed_parameters.X_in;
 
         ss_approx[i] = input_data.fixed_parameters.R / 2.0 * theta[2] * theta[4] * theta[3];
     }

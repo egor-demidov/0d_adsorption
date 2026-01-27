@@ -10,8 +10,8 @@ with open(f'uptake_curve_processing/{DATASET}/drift_corrected.json', 'r') as f:
 with open(f'uptake_curve_processing/{DATASET}/fitted.json', 'r') as f:
     fitted_data = json.load(f)
 
-plt.plot(exp_data['experimental_data']['t_exp'], fitted_data['uptake_rates']['exact'], label='Experimental')
-plt.plot(exp_data['experimental_data']['t_exp'], fitted_data['uptake_rates']['initial_approx'], label='Experimental')
-plt.plot(exp_data['experimental_data']['t_exp'], fitted_data['uptake_rates']['ss_approx'], label='Experimental')
+plt.plot(exp_data['experimental_data']['t_exp'], fitted_data['uptake_rates']['exact'], label='Exact')
+plt.plot(exp_data['experimental_data']['t_exp'], fitted_data['uptake_rates']['initial_approx'], label='Initial')
+plt.plot(exp_data['experimental_data']['t_exp'], fitted_data['uptake_rates']['ss_approx'], label='SS')
 plt.legend()
 plt.show()
