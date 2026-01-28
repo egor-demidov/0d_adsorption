@@ -224,24 +224,20 @@ int main(int argc, char ** argv) {
     out_data["fitted_data"]["X0"] = X0[0];
     out_data["fitted_data"]["X"] = X[0];
 
-    std::vector<double> exact_uptake_rate(input_data.t_exp.size()),
-        initial_approx(input_data.t_exp.size()),
-        ss_approx(input_data.t_exp.size());
+    // Outputting sensitivities...
+    out_data["sensitivities"]["dXdk_ads"] = X[4];
+    out_data["sensitivities"]["dXdk_des"] = X[5];
+    out_data["sensitivities"]["dXdk_rxn"] = X[6];
+    out_data["sensitivities"]["dXdS_tot"] = X[7];
+    out_data["sensitivities"]["dXdY_tot"] = X[8];
 
-    for (int i = 0; i < exact_uptake_rate.size(); i ++) {
+    std::vector<double> uptake_rate(input_data.t_exp.size());
 
-        const double k_diff =  3.66 * input_data.fixed_parameters.Di / input_data.fixed_parameters.R / input_data.fixed_parameters.R;
-
-        exact_uptake_rate[i] = theta[0] * X[9][i] * X[1][i] * (theta[3] - X[2][i]) - input_data.fixed_parameters.R / 2.0 * theta[1] * X[2][i];
-
-        initial_approx[i] = theta[0] * theta[3] * input_data.fixed_parameters.X_in;
-
-        ss_approx[i] = input_data.fixed_parameters.R / 2.0 * theta[2] * theta[4] * theta[3];
+    for (int i = 0; i < uptake_rate.size(); i ++) {
+        uptake_rate[i] = theta[0] * X[9][i] * X[1][i] * (theta[3] - X[2][i]) - input_data.fixed_parameters.R / 2.0 * theta[1] * X[2][i];
     }
 
-    out_data["uptake_rates"]["exact"] = exact_uptake_rate;
-    out_data["uptake_rates"]["initial_approx"] = initial_approx;
-    out_data["uptake_rates"]["ss_approx"] = ss_approx;
+    out_data["fitted_data"]["uptake_rate"] = uptake_rate;
 
     std::ofstream ofs(output_file_path);
 
