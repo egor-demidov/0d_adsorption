@@ -223,6 +223,7 @@ int main(int argc, char ** argv) {
     out_data["solution"]["Y_tot"] = theta[4];
     out_data["fitted_data"]["X0"] = X0[0];
     out_data["fitted_data"]["X"] = X[0];
+    out_data["fitted_data"]["Xgs"] = X[1];
 
     // Outputting sensitivities...
     out_data["sensitivities"]["dXdk_ads"] = X[4];
