@@ -3,6 +3,9 @@
 !uptake_curve_processing/
 !uptake_curve_processing/**
 
+!run_only/
+!run_only/**
+
 !.gitignore
 !CMakeLists.txt
 !*.cpp
