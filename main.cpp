@@ -224,6 +224,8 @@ int main(int argc, char ** argv) {
     out_data["fitted_data"]["X0"] = X0[0];
     out_data["fitted_data"]["X"] = X[0];
     out_data["fitted_data"]["Xgs"] = X[1];
+    out_data["fitted_data"]["Xs"] = X[2];
+    out_data["fitted_data"]["P"] = X[3];
 
     // Outputting sensitivities...
     out_data["sensitivities"]["dXdk_ads"] = X[4];
