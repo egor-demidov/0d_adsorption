@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import json
 
 
-with open(f'run_only/run.json', 'r') as f:
+with open(f'run_only/NaCl/run.json', 'r') as f:
     run = json.load(f)
 
 plt.plot(run['solution']['t'], run['solution']['X'], label='Experimental')

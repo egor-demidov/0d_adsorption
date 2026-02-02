@@ -112,7 +112,7 @@ int Model::rhs(sunrealtype t, N_Vector y, N_Vector ydot) const {
 
   const sunrealtype k_d  = derived_parameters_.k_diff;
   const sunrealtype a    = derived_parameters_.a;
-  const sunrealtype Xin  = fixed_parameters_.X_in;
+  const sunrealtype Xin  = X_in_sub_;
   const sunrealtype R    = fixed_parameters_.R;
   const sunrealtype ft   = f_of_t(t);
   const sunrealtype k_a_eff = fitted_parameters_.k_ads * ft;
