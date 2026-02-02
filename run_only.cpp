@@ -16,7 +16,6 @@ struct InputData {
     Model::FittedParameters fitted_parameters;
     double t_tot;
     long N_t;
-    long N_reactors;
 };
 
 InputData load_input_data(std::filesystem::path const & input_file_path) {
@@ -31,13 +30,12 @@ InputData load_input_data(std::filesystem::path const & input_file_path) {
     json data = json::parse(ifs);
 
     long N_t = data.at("N_t").get<long>();
-    long N_reactors = data.at("N_reactors").get<long>();
 
     InputData input_data{
         .fixed_parameters = {
             .Di = 40.0,
             .R = data.at("R").get<double>(),
-            .L = data.at("L").get<double>() / static_cast<double>(N_reactors),
+            .L = data.at("L").get<double>(),
             .F = data.at("F").get<double>() * 760.0 / data.at("pressure").get<double>(),
             .X_in = data.at("X_in").get<double>(),
             .t_ads_start = data.at("t_ads_start").get<double>(),
@@ -52,8 +50,7 @@ InputData load_input_data(std::filesystem::path const & input_file_path) {
             .S_tot = data.at("fitted_parameters").at("S_tot").get<double>(),
             .P_tot = data.at("fitted_parameters").at("Y_tot").get<double>()
         },
-        .N_t = N_t,
-        .N_reactors = N_reactors
+        .N_t = N_t
     };
 
     return input_data;
@@ -62,36 +59,23 @@ InputData load_input_data(std::filesystem::path const & input_file_path) {
 std::array<std::vector<double>, 10> solve_model(
     Model::FixedParameters const & fixed_parameters,
     Model::FittedParameters const & fitted_parameters,
-    const long N_t, const long N_reactors) {
+    const long N_t) {
 
-    std::vector<Model> models;
-    models.reserve(N_reactors);
-    for (long n = 0; n < N_reactors; n ++)
-        models.emplace_back(fixed_parameters, fitted_parameters);   // Construct in place required - no copying of Model allowed
+    Model model(fixed_parameters, fitted_parameters);
 
-    // Solution buffer
     std::array<std::vector<double>, 10> X;
     std::fill(X.begin(), X.end(), std::vector<double>(N_t));
 
-    // Iterate over time steps
     for (long i = 0; i < N_t; i ++) {
 
-        // Iterate over chained reactors to update inlet concentrations
-        for (long n = 1; n < N_reactors; n ++)
-            models[n].set_X_in_sub(models[n-1].get_Y()[0]);
+        model.do_step();
 
-        // Iterate over chained reactors to time step
-        for (long n = 0; n < N_reactors; n ++)
-            models[n].do_step();
-
-        // Store the solution from the final reactor in the solution buffer
-        auto const & final_reactor = models[N_reactors-1];
         for (int j = 0; j < 4; j ++)
-            X[j][i] = final_reactor.get_Y()[j];
+            X[j][i] = model.get_Y()[j];
         for (int j = 0; j < 5; j ++)
-            X[j+4][i] = final_reactor.get_Y()[Model::sbase(j)];
+            X[j+4][i] = model.get_Y()[Model::sbase(j)];
 
-        X[9][i] = final_reactor.f_of_t(final_reactor.get_t());
+        X[9][i] = model.f_of_t(model.get_t());
     }
 
     return X;
@@ -123,7 +107,7 @@ int main(int argc, char ** argv) {
         ts[i] = static_cast<double>(i+1) * input_data.fixed_parameters.dt;
     }
 
-    auto X = solve_model(input_data.fixed_parameters, fitted_parameters, input_data.N_t, input_data.N_reactors);
+    auto X = solve_model(input_data.fixed_parameters, fitted_parameters, input_data.N_t);
 
     ordered_json out_data;
     out_data["solution"]["X"] = X[0];

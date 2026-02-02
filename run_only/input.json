@@ -8,7 +8,6 @@
     "t_ads_end": 1100.78,
     "t_tot": 1400.0,
     "N_t": 100,
-    "N_reactors": 5,
     "fitted_parameters": {
         "k_ads": 7.2639056789886046e-12,
         "k_des": 0.05281852919519623,
