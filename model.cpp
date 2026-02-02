@@ -32,6 +32,7 @@ Model::Model(FixedParameters const & fixed_parameters, FittedParameters const & 
   , cvode_mem_(nullptr)
   , A_(nullptr)
   , LS_(nullptr)
+  , X_in_sub_(fixed_parameters.X_in)
 {
   // Initial conditions for x:
   sunrealtype X0=fixed_parameters.X_in, Xgs0=fixed_parameters.X_in, Xs0=0, P0=0;

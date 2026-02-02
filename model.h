@@ -39,6 +39,14 @@ public:
     Model(FixedParameters const & fixed_parameters, FittedParameters const & fitted_parameters);
     ~Model();
 
+    // Prohibit copying
+    Model(const Model&) = delete;
+    Model& operator=(const Model&) = delete;
+
+    // Allow moving
+    Model(Model&&) = default;
+    Model& operator=(Model&&) = default;
+
     [[nodiscard]]
     sunrealtype f_of_t(sunrealtype t) const {
         return 0.5 * (tanh((t - fixed_parameters_.t_ads_start) / fixed_parameters_.k_ads_smooth) - tanh((t - fixed_parameters_.t_ads_end) / fixed_parameters_.k_ads_smooth));
@@ -58,6 +66,10 @@ public:
     [[nodiscard]]
     sunrealtype get_t() const {
         return t_out;
+    }
+
+    void set_X_in_sub(sunrealtype X_in_sub) {
+        X_in_sub_ = X_in_sub;
     }
 
 private:
@@ -105,6 +117,9 @@ private:
     SUNLinearSolver LS_;
 
     sunrealtype t_out = 0.0;
+
+    // Inlet concentration to the sub-reactor
+    sunrealtype X_in_sub_;
 };
 
 #endif //INC_0D_ADSORPTION_MODEL_H
