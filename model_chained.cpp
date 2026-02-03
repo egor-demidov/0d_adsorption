@@ -28,7 +28,7 @@ Model::Model(FixedParameters const & fixed_parameters, FittedParameters const & 
   , derived_parameters_{
     .V = M_PI * fixed_parameters.R * fixed_parameters.R * fixed_parameters.L,
     .k_diff = 3.66 * fixed_parameters.Di / fixed_parameters.R / fixed_parameters.R,
-    .a = fixed_parameters.F / (M_PI * fixed_parameters.R * fixed_parameters.R * fixed_parameters.L)
+    .a = fixed_parameters.F / (M_PI * fixed_parameters.R * fixed_parameters.R * fixed_parameters.L / static_cast<double>(N_reactors))
   }
   , sunctx_(nullptr)
   , y_(nullptr)
@@ -50,7 +50,15 @@ Model::Model(FixedParameters const & fixed_parameters, FittedParameters const & 
   y_ = N_VNew_Serial(N, sunctx_);
   sunrealtype* Y = N_VGetArrayPointer(y_);
   for (int i=0;i<N;++i) Y[i]=0.0;
-  Y[0]=X0; Y[1]=Xgs0; Y[2]=Xs0; Y[3]=P0;
+
+  // Set the initial conditions for each reactor
+  for (int n = 0; n < N_reactors_; n ++) {
+    Y[xbase(n, 0)] = X0;
+    Y[xbase(n, 1)] = Xgs0;
+    Y[xbase(n, 2)] = Xs0;
+    Y[xbase(n, 3)] = P0;
+  }
+
   // Sensitivities s(0)=0 already set.
 
   // Create CVODE memory
@@ -73,14 +81,17 @@ Model::Model(FixedParameters const & fixed_parameters, FittedParameters const & 
   atol_ = N_VNew_Serial(N, sunctx_);
   auto* a = N_VGetArrayPointer(atol_);
 
-  // States: scale to your magnitude (~1e10 for X, Xgs)
-  a[0] = 1e2;   // X
-  a[1] = 1e2;   // Xgs
-  a[2] = 1e-6;  // Xs (if small)
-  a[3] = 1e-6;  // P  (if small)
-
+  // Set absolute tolerances
   // Sensitivities: MUCH looser at first
-  for (int i = 4; i < N; ++i) a[i] = 1e6;
+  for (int i = 0; i < N; ++i) a[i] = 1e6;
+
+  // States: scale to your magnitude (~1e10 for X, Xgs)
+  for (int n = 0; n < N_reactors_; n ++) {
+    a[xbase(n, 0)] = 1e2;   // X
+    a[xbase(n, 1)] = 1e2;   // Xgs
+    a[xbase(n, 2)] = 1e-6;  // Xs (if small)
+    a[xbase(n, 3)] = 1e-6;  // P  (if small)
+  }
 
   flag = CVodeSVtolerances(cvode_mem_, reltol, atol_);
   if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeSStolerances failed\n"); exit(EXIT_FAILURE); }
@@ -92,6 +103,8 @@ Model::Model(FixedParameters const & fixed_parameters, FittedParameters const & 
   flag = CVodeSetLinearSolver(cvode_mem_, LS_, A_);
   if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeSetLinearSolver failed\n"); exit(EXIT_FAILURE); }
 
+
+  // flag = CVodeSetJacFn(cvode_mem_, jac_cvode);
   flag = CVodeSetJacFn(cvode_mem_, nullptr);
   if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeSetJacFn failed\n"); exit(EXIT_FAILURE); }
 }
@@ -115,7 +128,7 @@ int Model::rhs(sunrealtype t, N_Vector y, N_Vector ydot) const {
 
   const sunrealtype k_d  = derived_parameters_.k_diff;
   const sunrealtype a    = derived_parameters_.a;
-  const sunrealtype Xin  = fixed_parameters_.X_in;
+  const sunrealtype Xfeed  = fixed_parameters_.X_feed;
   const sunrealtype R    = fixed_parameters_.R;
   const sunrealtype ft   = f_of_t(t);
   const sunrealtype k_a_eff = fitted_parameters_.k_ads * ft;
@@ -124,84 +137,90 @@ int Model::rhs(sunrealtype t, N_Vector y, N_Vector ydot) const {
   sunrealtype* Y  = N_VGetArrayPointer(y);
   sunrealtype* dY = N_VGetArrayPointer(ydot);
 
-  // States
-  const sunrealtype X   = Y[0];
-  const sunrealtype Xgs = Y[1];
-  const sunrealtype Xs  = Y[2];
-  const sunrealtype P   = Y[3];
+  for (int n = 0; n < N_reactors_; n ++) {
 
-  // ---- f(x,theta) ----
-  const sunrealtype f1 = a*(Xin - X) - k_d*(X - Xgs);
-  const sunrealtype f2 = k_d*(X - Xgs) - (2.0/R)*k_a_eff*Xgs*(S - Xs) + k_de*Xs;
-  const sunrealtype f3 = k_a_eff*Xgs*(S - Xs) - (R/2.0)*k_de*Xs - k_r*Xs*(PT - P);
-  const sunrealtype f4 = k_r*Xs*(PT - P);
+    const sunrealtype Xprev = (n == 0 ? Xfeed : Y[xbase(n-1, 0)]);
 
-  dY[0] = f1;
-  dY[1] = f2;
-  dY[2] = f3;
-  dY[3] = f4;
+    // States
+    const sunrealtype X   = Y[xbase(n, 0)];
+    const sunrealtype Xgs = Y[xbase(n, 1)];
+    const sunrealtype Xs  = Y[xbase(n, 2)];
+    const sunrealtype P   = Y[xbase(n, 3)];
 
-  // ---- A = df/dx (4x4) ----
-  const sunrealtype A11 = -a - k_d;
-  const sunrealtype A12 =  k_d;
+    // ---- f(x,theta) ----
+    const sunrealtype f1 = a*(Xprev - X) - k_d*(X - Xgs);
+    const sunrealtype f2 = k_d*(X - Xgs) - (2.0/R)*k_a_eff*Xgs*(S - Xs) + k_de*Xs;
+    const sunrealtype f3 = k_a_eff*Xgs*(S - Xs) - (R/2.0)*k_de*Xs - k_r*Xs*(PT - P);
+    const sunrealtype f4 = k_r*Xs*(PT - P);
 
-  const sunrealtype A21 =  k_d;
-  const sunrealtype A22 = -k_d - (2.0/R)*k_a_eff*(S - Xs);
-  const sunrealtype A23 =  (2.0/R)*k_a_eff*Xgs + k_de;
+    dY[xbase(n, 0)] = f1;
+    dY[xbase(n, 1)] = f2;
+    dY[xbase(n, 2)] = f3;
+    dY[xbase(n, 3)] = f4;
 
-  const sunrealtype A32 =  k_a_eff*(S - Xs);
-  const sunrealtype A33 = -k_a_eff*Xgs - (R/2.0)*k_de - k_r*(PT - P);
-  const sunrealtype A34 =  k_r*Xs;
+    // ---- A = df/dx (4x4) ----
+    const sunrealtype A11 = -a - k_d;
+    const sunrealtype A12 =  k_d;
 
-  const sunrealtype A43 =  k_r*(PT - P);
-  const sunrealtype A44 = -k_r*Xs;
+    const sunrealtype A21 =  k_d;
+    const sunrealtype A22 = -k_d - (2.0/R)*k_a_eff*(S - Xs);
+    const sunrealtype A23 =  (2.0/R)*k_a_eff*Xgs + k_de;
 
-  // For each parameter, build b^(j) = df/dtheta_j and compute sdot = A*s + b
-  for (int j = 0; j < NP; ++j) {
-    const int b = sbase(j);
-    const sunrealtype sX   = Y[b+0];
-    const sunrealtype sXgs = Y[b+1];
-    const sunrealtype sXs  = Y[b+2];
-    const sunrealtype sP   = Y[b+3];
+    const sunrealtype A32 =  k_a_eff*(S - Xs);
+    const sunrealtype A33 = -k_a_eff*Xgs - (R/2.0)*k_de - k_r*(PT - P);
+    const sunrealtype A34 =  k_r*Xs;
 
-    // A*s
-    sunrealtype As0 = A11*sX + A12*sXgs;
-    sunrealtype As1 = A21*sX + A22*sXgs + A23*sXs;
-    sunrealtype As2 = A32*sXgs + A33*sXs + A34*sP;
-    sunrealtype As3 = A43*sXs + A44*sP;
+    const sunrealtype A43 =  k_r*(PT - P);
+    const sunrealtype A44 = -k_r*Xs;
 
-    // b^(j)
-    sunrealtype b0=0, b1=0, b2=0, b3=0;
+    // For each parameter, build b^(j) = df/dtheta_j and compute sdot = A*s + b
+    for (int j = 0; j < NP; ++j) {
+      const int b = sbase(n, j);
+      const sunrealtype sX   = Y[b+0];
+      const sunrealtype sXgs = Y[b+1];
+      const sunrealtype sXs  = Y[b+2];
+      const sunrealtype sP   = Y[b+3];
 
-    switch (j) {
-      case 0: // k_ads
-        b1 = -(2.0/R)*Xgs*(S - Xs)*ft;
-        b2 =  (1.0)*Xgs*(S - Xs)*ft;
-        break;
-      case 1: // k_des
-        b1 =  Xs;
-        b2 = -(R/2.0)*Xs;
-        break;
-      case 2: // k_rxn
-        b2 = -Xs*(PT - P);
-        b3 =  Xs*(PT - P);
-        break;
-      case 3: // S_tot
-        b1 = -(2.0/R)*k_a_eff*Xgs;
-        b2 =  k_a_eff*Xgs;
-        break;
-      case 4: // P_tot
-        b2 = -k_r*Xs;
-        b3 =  k_r*Xs;
-        break;
-      default:
-        break;
+      // A*s
+      sunrealtype As0 = A11*sX + A12*sXgs;
+      sunrealtype As1 = A21*sX + A22*sXgs + A23*sXs;
+      sunrealtype As2 = A32*sXgs + A33*sXs + A34*sP;
+      sunrealtype As3 = A43*sXs + A44*sP;
+
+      // b^(j)
+      sunrealtype b0=0, b1=0, b2=0, b3=0;
+
+      switch (j) {
+        case 0: // k_ads
+          b1 = -(2.0/R)*Xgs*(S - Xs)*ft;
+          b2 =  (1.0)*Xgs*(S - Xs)*ft;
+          break;
+        case 1: // k_des
+          b1 =  Xs;
+          b2 = -(R/2.0)*Xs;
+          break;
+        case 2: // k_rxn
+          b2 = -Xs*(PT - P);
+          b3 =  Xs*(PT - P);
+          break;
+        case 3: // S_tot
+          b1 = -(2.0/R)*k_a_eff*Xgs;
+          b2 =  k_a_eff*Xgs;
+          break;
+        case 4: // P_tot
+          b2 = -k_r*Xs;
+          b3 =  k_r*Xs;
+          break;
+        default:
+          break;
+      }
+
+      dY[b+0] = As0 + b0;
+      dY[b+1] = As1 + b1;
+      dY[b+2] = As2 + b2;
+      dY[b+3] = As3 + b3;
     }
 
-    dY[b+0] = As0 + b0;
-    dY[b+1] = As1 + b1;
-    dY[b+2] = As2 + b2;
-    dY[b+3] = As3 + b3;
   }
 
   return 0;
@@ -263,7 +282,7 @@ int Model::jac(sunrealtype t, N_Vector y, N_Vector fy, SUNMatrix J, N_Vector tmp
   // For each sensitivity block j:
   // diagonal block = A, and left block = D^(j) = d/dx (A*s + b^(j))
   for (int j = 0; j < NP; ++j) {
-    const int b = sbase(j);
+    const int b = sbase(0, j);
 
     const sunrealtype sX   = Y[b+0];
     const sunrealtype sXgs = Y[b+1];
