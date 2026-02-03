@@ -49,7 +49,7 @@ def solve_ode(p0, N_reactors, t_span):
                     y0=y0,
                     method="BDF",   # or "Radau"
                     rtol=1e-8, atol=1e-12,
-                    # t_eval=data['solution_curves']['t_exp']
+                    t_eval=np.linspace(0.0, t_span, 300)
                     )
 
     return sol
@@ -86,6 +86,10 @@ def main():
                (solve_ode(p0, 3, fixed_data['experimental_data']['t_exp'][-1]), 3),
                (solve_ode(p0, 4, fixed_data['experimental_data']['t_exp'][-1]), 4),
                (solve_ode(p0, 5, fixed_data['experimental_data']['t_exp'][-1]), 5),
+               (solve_ode(p0, 10, fixed_data['experimental_data']['t_exp'][-1]), 10),
+               (solve_ode(p0, 20, fixed_data['experimental_data']['t_exp'][-1]), 20),
+               (solve_ode(p0, 40, fixed_data['experimental_data']['t_exp'][-1]), 40),
+               (solve_ode(p0, 80, fixed_data['experimental_data']['t_exp'][-1]), 80),
     )
 
     # plt.plot(data['solution_curves']['t_exp'], data['solution_curves']['X_exp'], 'o', ms=1)
@@ -95,6 +99,27 @@ def main():
     plt.legend()
     # plt.plot(data.)
     plt.show()
+
+
+    l2_norms = []
+    ns = []
+
+    sol_ref, n_ref = sols[len(sols) - 1]
+
+    for i in range(len(sols) - 1):
+        sol, n = sols[i]
+
+        ns.append(n)
+        l2_norms.append(np.sum((sol.y[(n-1)*4] - sol_ref.y[(n_ref-1)*4])**2.0))
+
+    plt.figure()
+    plt.plot(ns, l2_norms, 'o')
+    plt.xlabel('N reactors')
+    plt.ylabel('L2 norm of error')
+    plt.yscale('log')
+    # plt.xscale('log')
+    plt.show()
+
 
 
 if __name__ == '__main__':
