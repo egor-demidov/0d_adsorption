@@ -23,7 +23,7 @@ InputData load_input_data(std::filesystem::path const & input_file_path) {
     std::ifstream ifs(input_file_path);
 
     if (!ifs.good()) {
-        fmt::println(stderr, "Error reading experimental data from {}", input_file_path.string());
+        fmt::println(stderr, "Error reading input data from {}", input_file_path.string());
         exit(EXIT_FAILURE);
     }
 
