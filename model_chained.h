@@ -29,7 +29,7 @@ public:
     };
 
     struct FittedParameters {
-        const sunrealtype k_ads;
+        /*const*/ sunrealtype k_ads;
         const sunrealtype k_des;
         const sunrealtype k_rxn;
         const sunrealtype S_tot;

@@ -112,6 +112,17 @@ int main(int argc, char ** argv) {
 
     auto X = solve_model(input_data.fixed_parameters, fitted_parameters, input_data.N_t, input_data.N_reactors);
 
+    // double h = 1.0e-16;
+    // fitted_parameters.k_ads += h;
+
+    // auto X_fwd = solve_model(input_data.fixed_parameters, fitted_parameters, input_data.N_t, input_data.N_reactors);
+
+    // std::vector<double> dXfwd(X[0].size());
+
+    // for (int i = 0; i < X[0].size(); i ++) {
+        // dXfwd[i] = (X_fwd[0][i] - X[0][i]) / h;
+    // }
+
     ordered_json out_data;
     out_data["solution"]["X"] = X[0];
     out_data["solution"]["t"] = ts;
@@ -124,6 +135,7 @@ int main(int argc, char ** argv) {
     out_data["sensitivities"]["dXdk_rxn"] = X[6];
     out_data["sensitivities"]["dXdS_tot"] = X[7];
     out_data["sensitivities"]["dXdY_tot"] = X[8];
+    // out_data["sensitivities"]["dXfwd"] = dXfwd;
     //
     // std::vector<double> uptake_rate(input_data.t_exp.size());
     //
