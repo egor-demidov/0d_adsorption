@@ -33,28 +33,30 @@ with open('run_1d_model.json', 'r') as f:
 
 ax1.plot(data_1d_model['solution_curves']['t_exp'], data_1d_model['solution_curves']['X_interp'], label='1D model')
 
+ax1.set_xlim((100, 400))
+
 # Create inset axes
-axins = inset_axes(ax1, width="40%", height="30%", loc="lower right")
+# axins = inset_axes(ax1, width="40%", height="30%", loc="lower right")
 
 # Plot same data in inset
-for curve, count in zip(uptake_curves, reactor_counts_plot_a):
-    axins.plot(ts, curve)
-axins.plot(data_1d_model['solution_curves']['t_exp'], data_1d_model['solution_curves']['X_interp'])
+# for curve, count in zip(uptake_curves, reactor_counts_plot_a):
+#     axins.plot(ts, curve)
+# axins.plot(data_1d_model['solution_curves']['t_exp'], data_1d_model['solution_curves']['X_interp'])
 
 # Define zoom region
-x1, x2 = 150, 230
-y1, y2 = 1.5e9, 8.5e9
-axins.set_xlim(x1, x2)
-axins.set_ylim(y1, y2)
+# x1, x2 = 150, 230
+# y1, y2 = 1.5e9, 8.5e9
+# axins.set_xlim(x1, x2)
+# axins.set_ylim(y1, y2)
 
 # Remove ticks (optional)
-axins.set_xticks([])
-axins.set_yticks([])
+# axins.set_xticks([])
+# axins.set_yticks([])
 
 # Draw box and connectors
-mark_inset(ax1, axins, loc1=2, loc2=4, fc="none", ec="0.5")
+# mark_inset(ax1, axins, loc1=2, loc2=4, fc="none", ec="0.5")
 
-ax1.legend(loc='upper left')
+ax1.legend(loc='lower right')
 ax1.set_xlabel(R'Time, $\rm s$')
 ax1.set_ylabel(R'X concentration, $\rm cm^{-3}$')
 
