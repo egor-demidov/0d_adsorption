@@ -6,12 +6,16 @@ from matplotlib.ticker import MaxNLocator
 
 
 R = 0.78    # cm
-L = 5.0     # cm
+L_LEVO = 5.0     # cm
+L_NACL = 2.0     # cm
 
 with open('levoglucosan_parameter_convergence.json', 'r') as f:
     data_plot_b = json.load(f)
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4.3))
+with open('nacl_parameter_convergence.json', 'r') as f:
+    data_plot_d = json.load(f)
+
+fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10, 4.3*2))
 
 # Prepare the data for plot (a)
 uptake_curves = []
@@ -84,11 +88,11 @@ for key in list(plot_b.keys())[1:]:
     plot_b[key] = (plot_b[key] - plot_b[key][-1]) / plot_b[key][-1] * 100
 
 # Define transformation functions
-def forward(N):
-    return R * N / L
+def forward_levo(N):
+    return R * N / L_LEVO
 
-def inverse(x):
-    return x * L / R
+def inverse_levo(x):
+    return x * L_LEVO / R
 
 ax2.plot(plot_b["N_reactors"], plot_b["k_ads"], '-o', label=R'$k_{\rm ads}$')
 ax2.plot(plot_b["N_reactors"], plot_b["k_des"], '-v', label=R'$k_{\rm des}$')
@@ -101,8 +105,53 @@ ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
 ax2.set_xlabel('Number of reactors')
 ax2.set_ylabel('Relative parameter error, %')
 
-secax = ax2.secondary_xaxis('top', functions=(forward, inverse))
+secax = ax2.secondary_xaxis('top', functions=(forward_levo, inverse_levo))
 secax.set_xlabel(R'$RN_{\rm reactors}/L$')
+
+# Prepare the data for plot (d)
+plot_d = {
+    "N_reactors": [],
+    "k_ads": [],
+    "k_des": [],
+    "k_rxn": [],
+    "S_tot": [],
+    "Y_tot": []
+}
+
+# Load the data into lists
+for point in data_plot_d:
+    for key in plot_d.keys():
+        plot_d[key].append(point[key])
+
+# Convert lists into numpy arrays
+for key in plot_d.keys():
+    plot_d[key] = np.array(plot_d[key])
+
+# Calculate relative error
+for key in list(plot_d.keys())[1:]:
+    plot_d[key] = (plot_d[key] - plot_d[key][-1]) / plot_d[key][-1] * 100
+
+# Define transformation functions
+def forward_nacl(N):
+    return R * N / L_NACL
+
+def inverse_nacl(x):
+    return x * L_NACL / R
+
+ax4.plot(plot_d["N_reactors"], plot_d["k_ads"], '-o', label=R'$k_{\rm ads}$')
+ax4.plot(plot_d["N_reactors"], plot_d["k_des"], '-v', label=R'$k_{\rm des}$')
+ax4.plot(plot_d["N_reactors"], plot_d["k_rxn"], '-^', label=R'$k_{\rm rxn}$')
+ax4.plot(plot_d["N_reactors"], plot_d["S_tot"], '-s', label=R'$S_{\rm tot}$')
+ax4.plot(plot_d["N_reactors"], plot_d["Y_tot"], '-*', label=R'$Y_{\rm tot}$')
+ax4.legend()
+ax4.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+ax4.set_xlabel('Number of reactors')
+ax4.set_ylabel('Relative parameter error, %')
+
+secax_nacl = ax4.secondary_xaxis('top', functions=(forward_nacl, inverse_nacl))
+secax_nacl.set_xlabel(R'$RN_{\rm reactors}/L$')
+
 
 plt.tight_layout()
 plt.savefig('figure_2.pdf')
