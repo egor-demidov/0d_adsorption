@@ -6,6 +6,9 @@
 !run_only/
 !run_only/**
 
+!paper_plots/
+!paper_plots/**
+
 !.gitignore
 !CMakeLists.txt
 !*.cpp

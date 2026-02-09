@@ -19,6 +19,10 @@ add_executable(0d_adsorption_run_only run_only.cpp
         model.cpp
         model.h)
 
+add_executable(0d_adsorption_fit_chained fit_chained.cpp
+        model_chained.cpp
+        model.h)
+
 add_executable(0d_adsorption_chained run_chained.cpp
         model_chained.cpp
         model.h)
@@ -37,6 +41,16 @@ target_link_libraries(0d_adsorption PRIVATE
 
 target_link_libraries(0d_adsorption_run_only PRIVATE
         fmt::fmt
+        SUNDIALS::cvode
+        SUNDIALS::nvecserial
+        SUNDIALS::sunmatrixdense
+        SUNDIALS::sunlinsoldense
+        nlohmann_json::nlohmann_json
+)
+
+target_link_libraries(0d_adsorption_fit_chained PRIVATE
+        fmt::fmt
+        Ceres::ceres
         SUNDIALS::cvode
         SUNDIALS::nvecserial
         SUNDIALS::sunmatrixdense
