@@ -42,7 +42,7 @@ InputData load_input_data(std::filesystem::path const & input_file_path) {
             .X_feed = data.at("X_feed").get<double>(),
             .t_ads_start = data.at("t_ads_start").get<double>(),
             .t_ads_end = data.at("t_ads_end").get<double>(),
-            .k_ads_smooth = 2.0,
+            .k_ads_smooth = data.at("k_ads_smooth").get<double>(),
             .dt =  data.at("t_tot").get<double>() / static_cast<double>(N_t)
         },
         .fitted_parameters = {

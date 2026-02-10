@@ -3,6 +3,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
 from matplotlib.ticker import MaxNLocator
+import string
+
+
+plt.rcParams.update({
+    "font.size": 12,        # default text size
+    # "axes.titlesize": 14,
+    # "axes.labelsize": 13,
+    # "xtick.labelsize": 11,
+    # "ytick.labelsize": 11,
+    # "legend.fontsize": 11
+})
 
 
 R = 0.78    # cm
@@ -15,14 +26,14 @@ with open('levoglucosan_parameter_convergence.json', 'r') as f:
 with open('nacl_parameter_convergence.json', 'r') as f:
     data_plot_d = json.load(f)
 
-fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10, 4.3*2))
+fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10, 4.3*1.8))
 
 # Prepare the data for plot (a)
 uptake_curves = []
 
 reactor_counts_plot_a = [1, 3, 10, 18]
 for count in reactor_counts_plot_a:
-    with open(f'run_{count}.json', 'r') as f:
+    with open(f'levoglucosan_runs/run_{count}.json', 'r') as f:
         data = json.load(f)
         ts = data['solution']['t']
         uptake_curves.append(data['solution']['X'])
@@ -32,37 +43,63 @@ for curve, count in zip(uptake_curves, reactor_counts_plot_a):
     ax1.plot(ts, curve, label=f'{count} reactor{'s' if count > 1 else ''}')
 
 # Load the 1D model solution
-with open('run_1d_model.json', 'r') as f:
+with open('levoglucosan_runs/run_1d_model.json', 'r') as f:
     data_1d_model = json.load(f)
 
 ax1.plot(data_1d_model['solution_curves']['t_exp'], data_1d_model['solution_curves']['X_interp'], label='1D model')
 
 ax1.set_xlim((100, 400))
 
-# Create inset axes
-# axins = inset_axes(ax1, width="40%", height="30%", loc="lower right")
-
-# Plot same data in inset
-# for curve, count in zip(uptake_curves, reactor_counts_plot_a):
-#     axins.plot(ts, curve)
-# axins.plot(data_1d_model['solution_curves']['t_exp'], data_1d_model['solution_curves']['X_interp'])
-
-# Define zoom region
-# x1, x2 = 150, 230
-# y1, y2 = 1.5e9, 8.5e9
-# axins.set_xlim(x1, x2)
-# axins.set_ylim(y1, y2)
-
-# Remove ticks (optional)
-# axins.set_xticks([])
-# axins.set_yticks([])
-
-# Draw box and connectors
-# mark_inset(ax1, axins, loc1=2, loc2=4, fc="none", ec="0.5")
-
 ax1.legend(loc='lower right')
 ax1.set_xlabel(R'Time, $\rm s$')
 ax1.set_ylabel(R'X concentration, $\rm cm^{-3}$')
+
+
+# Prepare the data for plot (c)
+uptake_curves = []
+
+reactor_counts_plot_c = [1, 3, 10, 18]
+for count in reactor_counts_plot_c:
+    with open(f'nacl_runs/run_{count}.json', 'r') as f:
+        data = json.load(f)
+        ts = data['solution']['t']
+        uptake_curves.append(data['solution']['X'])
+
+
+for curve, count in zip(uptake_curves, reactor_counts_plot_c):
+    ax3.plot(ts, curve, label=f'{count} reactor{'s' if count > 1 else ''}')
+
+# Load the 1D model solution
+with open('nacl_runs/run_1d_model.json', 'r') as f:
+    data_1d_model = json.load(f)
+
+ax3.plot(data_1d_model['solution_curves']['t_exp'], data_1d_model['solution_curves']['X_interp'], label='1D model')
+
+ax3.set_xlim((200, 700))
+
+# Create inset axes
+axins = inset_axes(ax3, width="60%", height="45%", loc="lower right")
+
+# Plot same data in inset
+for curve, count in zip(uptake_curves, reactor_counts_plot_c):
+    axins.plot(ts, curve)
+axins.plot(data_1d_model['solution_curves']['t_exp'], data_1d_model['solution_curves']['X_interp'])
+
+# Define zoom region
+x1, x2 = 260, 320
+y1, y2 = 1.6e10, 2.6e10
+axins.set_xlim(x1, x2)
+axins.set_ylim(y1, y2)
+
+# Remove ticks (optional)
+axins.set_xticks([])
+axins.set_yticks([])
+
+# Draw box and connectors
+mark_inset(ax3, axins, loc1=2, loc2=4, fc="none", ec="0.5")
+
+ax3.set_xlabel(R'Time, $\rm s$')
+ax3.set_ylabel(R'X concentration, $\rm cm^{-3}$')
 
 # Prepare the data for plot (b)
 plot_b = {
@@ -101,6 +138,8 @@ ax2.plot(plot_b["N_reactors"], plot_b["S_tot"], '-s', label=R'$S_{\rm tot}$')
 ax2.plot(plot_b["N_reactors"], plot_b["Y_tot"], '-*', label=R'$Y_{\rm tot}$')
 ax2.legend()
 ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+ax2.set_ylim(bottom=None, top=200)
 
 ax2.set_xlabel('Number of reactors')
 ax2.set_ylabel('Relative parameter error, %')
@@ -143,14 +182,28 @@ ax4.plot(plot_d["N_reactors"], plot_d["k_des"], '-v', label=R'$k_{\rm des}$')
 ax4.plot(plot_d["N_reactors"], plot_d["k_rxn"], '-^', label=R'$k_{\rm rxn}$')
 ax4.plot(plot_d["N_reactors"], plot_d["S_tot"], '-s', label=R'$S_{\rm tot}$')
 ax4.plot(plot_d["N_reactors"], plot_d["Y_tot"], '-*', label=R'$Y_{\rm tot}$')
-ax4.legend()
+# ax4.legend()
 ax4.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+ax4.set_ylim(bottom=None, top=80)
 
 ax4.set_xlabel('Number of reactors')
 ax4.set_ylabel('Relative parameter error, %')
 
 secax_nacl = ax4.secondary_xaxis('top', functions=(forward_nacl, inverse_nacl))
 secax_nacl.set_xlabel(R'$RN_{\rm reactors}/L$')
+
+# Add a,b,c,d labels
+for ax, label in zip((ax1, ax2, ax3, ax4), string.ascii_lowercase):
+    ax.text(
+        0.04, 0.96,                # position (x,y) in axes coords
+        f'({label})',
+        transform=ax.transAxes,    # use axes coordinates (0–1)
+        fontsize=13,
+        fontweight='bold',
+        va='top',
+        ha='left'
+    )
 
 
 plt.tight_layout()
