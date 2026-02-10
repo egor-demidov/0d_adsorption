@@ -9,8 +9,27 @@
 
 #include "model_chained.h"
 
+// #define ENABLE_SCALING
+
+#ifdef ENABLE_SCALING
+#define S_EXP(__X__) exp(__X__)
+#define S_LOG(__X__) log(__X__)
+#else //ENABLE_SCALING
+#define S_EXP(__X__) (__X__)
+#define S_LOG(__X__) (__X__)
+#endif //ENABLE_SCALING
+
 using json = nlohmann::json;
 using ordered_json = nlohmann::ordered_json;
+
+bool almost_equal(double a, double b,
+                  double rel_tol = 1e-12,
+                  double abs_tol = 1e-15)
+{
+    return std::abs(a - b) <=
+           std::max(rel_tol * std::max(std::abs(a), std::abs(b)),
+                    abs_tol);
+}
 
 struct ResidualFunctor final : public ceres::CostFunction {
     ResidualFunctor(
@@ -37,24 +56,41 @@ struct ResidualFunctor final : public ceres::CostFunction {
         const double* theta = parameters[0];
         const int M = static_cast<int>(X_exp_.size());
 
+        // fmt::println("{:.03e} {:.03e} {:.03e} {:.03e} {:.03e}", S_EXP(theta[0]), S_EXP(theta[1]), S_EXP(theta[2]), S_EXP(theta[3]), S_EXP(theta[4]));
+
         Model::FittedParameters fitted_parameters {
-            theta[0], theta[1], theta[2], theta[3], theta[4]
+            S_EXP(theta[0]), S_EXP(theta[1]), S_EXP(theta[2]), S_EXP(theta[3]), S_EXP(theta[4])
         };
 
         Model model(fixed_parameters_, fitted_parameters, N_reactors_);
 
         // Skip until the first experimental point
-        while (model.get_t() <= t0_exp_)
+        long alignment_steps = 100;
+        while (!almost_equal(model.get_t(), t0_exp_) && alignment_steps > 0) {
             model.do_step();
+            alignment_steps --;
+        }
+
+        if (alignment_steps <= 0) {
+            fmt::println(stderr, "Failed to align model and experimental time grid");
+            exit(EXIT_FAILURE);
+        }
 
         std::vector<double> X_model(M);
         std::vector<std::array<double,5>> dX(M);
 
         for (long i = 0; i < M; i ++) {
+
+            // fmt::println("{} {}", t0_exp_ + static_cast<double>(i) * 3.333333333333333, model.get_t());
+
             X_model[i] = model.get_Y()[model.xbase(N_reactors_-1, 0)];
 
             for (long j = 0; j < 5; j ++)
+#ifndef ENABLE_SCALING
                 dX[i][j] = model.get_Y()[model.sbase(N_reactors_-1, j)];
+#else //ENABLE_SCALING
+                dX[i][j] = exp(theta[j]) * model.get_Y()[model.sbase(N_reactors_-1, j)];
+#endif //ENABLE_SCALING
 
             model.do_step();
         }
@@ -112,6 +148,13 @@ InputData load_input_data(std::filesystem::path const & input_file_path) {
     }
     dt_exp /= static_cast<double>(t_exp.size() - 1);
 
+    fmt::println("dt_exp: {}", dt_exp);
+
+    auto X_exp = data.at("experimental_data").at("X_exp").get<std::vector<double>>();
+
+    // std::rotate(X_exp.rbegin(), X_exp.rbegin() + 1, X_exp.rend());
+    // std::rotate(X_exp.begin(), X_exp.begin() + 1, X_exp.end());
+
     InputData input_data{
         .t0_exp = t0_exp,
         .fixed_parameters = {
@@ -133,7 +176,7 @@ InputData load_input_data(std::filesystem::path const & input_file_path) {
             .P_tot = data.at("initial_guess").at("Y_tot").get<double>()
         },
         .t_exp = t_exp,
-        .X_exp = data.at("experimental_data").at("X_exp").get<std::vector<double>>(),
+        .X_exp = X_exp,
         .N_reactors = data.at("N_reactors").get<long>()
     };
 
@@ -181,15 +224,15 @@ int main(int argc, char ** argv) {
 
     // Initial guesses
     double theta[] = {
-        input_data.initial_guess.k_ads,     // k_ads
-        input_data.initial_guess.k_des,     // k_des
-        input_data.initial_guess.k_rxn,     // k_rxn
-        input_data.initial_guess.S_tot,     // S0
-        input_data.initial_guess.P_tot      // Y0
+        S_LOG(input_data.initial_guess.k_ads),     // k_ads
+        S_LOG(input_data.initial_guess.k_des),     // k_des
+        S_LOG(input_data.initial_guess.k_rxn),     // k_rxn
+        S_LOG(input_data.initial_guess.S_tot),     // S0
+        S_LOG(input_data.initial_guess.P_tot)      // Y0
     };
 
     Model::FittedParameters fitted_parameters_0 {
-        theta[0], theta[1], theta[2], theta[3], theta[4]
+        S_EXP(theta[0]), S_EXP(theta[1]), S_EXP(theta[2]), S_EXP(theta[3]), S_EXP(theta[4])
     };
 
     auto X0 = solve_model(input_data.fixed_parameters, fitted_parameters_0, input_data.t_exp.size(), input_data.N_reactors);
@@ -198,41 +241,50 @@ int main(int argc, char ** argv) {
     problem.AddResidualBlock(cost, nullptr, theta);
 
     // Add constraints
+#ifndef ENABLE_SCALING
     problem.SetParameterLowerBound(theta, 0, 0.0);
     problem.SetParameterLowerBound(theta, 1, 0.0);
     problem.SetParameterLowerBound(theta, 2, 0.0);
     problem.SetParameterLowerBound(theta, 3, 0.0);
     problem.SetParameterLowerBound(theta, 4, 0.0);
+#endif //ENABLE_SCALING
 
     ceres::Solver::Options options;
     options.linear_solver_type = ceres::DENSE_QR;
     options.minimizer_progress_to_stdout = true;
     options.max_num_iterations = 200;  // increase from default 50
     // If your EvaluateAll is not thread-safe (CVODE usually isn't), force 1 thread:
+    // options.gradient_check_numeric_derivative_relative_step_size = 1e-1;
+    // options.check_gradients = true;
     options.num_threads = 1;
 
     // Tight tolerances - ONLY FOR FITTING ARTIFICIAL CURVES
-    options.function_tolerance   = 1e-12;   // cost change tolerance
-    options.gradient_tolerance   = 1e-14;   // gradient norm tolerance
-    options.parameter_tolerance  = 0.0;   // parameter step tolerance
-    options.use_nonmonotonic_steps = true;
+    // options.function_tolerance   = 1e-12;   // cost change tolerance
+    // options.gradient_tolerance   = 1e-14;   // gradient norm tolerance
+    // options.parameter_tolerance  = 0.0;   // parameter step tolerance
+    // options.use_nonmonotonic_steps = true;
+
+    double cost_before;
+    problem.Evaluate(ceres::Problem::EvaluateOptions(),
+                     &cost_before, nullptr, nullptr, nullptr);
+    std::cout << "Initial cost: " << cost_before << std::endl;
 
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
     std::cout << summary.FullReport() << "\n";
 
     Model::FittedParameters fitted_parameters {
-        theta[0], theta[1], theta[2], theta[3], theta[4]
+        S_EXP(theta[0]), S_EXP(theta[1]), S_EXP(theta[2]), S_EXP(theta[3]), S_EXP(theta[4])
     };
 
     auto X = solve_model(input_data.fixed_parameters, fitted_parameters, input_data.t_exp.size(), input_data.N_reactors);
 
     ordered_json out_data;
-    out_data["solution"]["k_ads"] = theta[0];
-    out_data["solution"]["k_des"] = theta[1];
-    out_data["solution"]["k_rxn"] = theta[2];
-    out_data["solution"]["S_tot"] = theta[3];
-    out_data["solution"]["Y_tot"] = theta[4];
+    out_data["solution"]["k_ads"] = S_EXP(theta[0]);
+    out_data["solution"]["k_des"] = S_EXP(theta[1]);
+    out_data["solution"]["k_rxn"] = S_EXP(theta[2]);
+    out_data["solution"]["S_tot"] = S_EXP(theta[3]);
+    out_data["solution"]["Y_tot"] = S_EXP(theta[4]);
     out_data["fitted_data"]["X0"] = X0[0];
     out_data["fitted_data"]["X"] = X[0];
     out_data["fitted_data"]["Xgs"] = X[1];

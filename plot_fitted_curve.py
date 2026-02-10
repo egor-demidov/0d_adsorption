@@ -11,7 +11,7 @@ import numpy as np
 # with open(f'uptake_curve_processing/{DATASET}/fitted.json', 'r') as f:
 #     fitted_data = json.load(f)
 
-DATASET = '500'
+DATASET = '100'
 
 with open(f'paper_plots/figure_5/combo_1/run_{DATASET}_fit/drift_corrected.json', 'r') as f:
     exp_data = json.load(f)

@@ -3,7 +3,7 @@
     "R": 0.78,
     "L": 2,
     "X_feed": 29424160260.695,
-    "N_reactors": 15,
+    "N_reactors": 5,
     "pressure": 1.965,
     "t_ads_start": 100.0,
     "t_ads_end": 700.0,
