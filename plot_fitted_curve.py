@@ -3,12 +3,20 @@ import json
 import numpy as np
 
 
-DATASET = 'NaCl-2'
+# DATASET = 'NaCl-2'
+#
+# with open(f'uptake_curve_processing/{DATASET}/drift_corrected.json', 'r') as f:
+#     exp_data = json.load(f)
+#
+# with open(f'uptake_curve_processing/{DATASET}/fitted.json', 'r') as f:
+#     fitted_data = json.load(f)
 
-with open(f'uptake_curve_processing/{DATASET}/drift_corrected.json', 'r') as f:
+DATASET = '500'
+
+with open(f'paper_plots/figure_5/combo_1/run_{DATASET}_fit/drift_corrected.json', 'r') as f:
     exp_data = json.load(f)
 
-with open(f'uptake_curve_processing/{DATASET}/fitted.json', 'r') as f:
+with open(f'paper_plots/figure_5/combo_1/run_{DATASET}_fit/fitted.json', 'r') as f:
     fitted_data = json.load(f)
 
 plt.plot(exp_data['experimental_data']['t_exp'], exp_data['experimental_data']['X_exp'], label='Experimental')

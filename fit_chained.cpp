@@ -211,9 +211,15 @@ int main(int argc, char ** argv) {
     // If your EvaluateAll is not thread-safe (CVODE usually isn't), force 1 thread:
     options.num_threads = 1;
 
+    // Tight tolerances - ONLY FOR FITTING ARTIFICIAL CURVES
+    options.function_tolerance   = 1e-12;   // cost change tolerance
+    options.gradient_tolerance   = 1e-14;   // gradient norm tolerance
+    options.parameter_tolerance  = 0.0;   // parameter step tolerance
+    options.use_nonmonotonic_steps = true;
+
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
-    std::cout << summary.BriefReport() << "\n";
+    std::cout << summary.FullReport() << "\n";
 
     Model::FittedParameters fitted_parameters {
         theta[0], theta[1], theta[2], theta[3], theta[4]
