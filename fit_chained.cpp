@@ -23,8 +23,8 @@ using json = nlohmann::json;
 using ordered_json = nlohmann::ordered_json;
 
 bool almost_equal(double a, double b,
-                  double rel_tol = 1e-12,
-                  double abs_tol = 1e-15)
+                  double rel_tol = 1e-2,
+                  double abs_tol = 1e-2)
 {
     return std::abs(a - b) <=
            std::max(rel_tol * std::max(std::abs(a), std::abs(b)),
@@ -68,6 +68,7 @@ struct ResidualFunctor final : public ceres::CostFunction {
         long alignment_steps = 100;
         while (!almost_equal(model.get_t(), t0_exp_) && alignment_steps > 0) {
             model.do_step();
+            fmt::println("{} {}", t0_exp_, model.get_t());
             alignment_steps --;
         }
 
@@ -149,6 +150,12 @@ InputData load_input_data(std::filesystem::path const & input_file_path) {
     dt_exp /= static_cast<double>(t_exp.size() - 1);
 
     fmt::println("dt_exp: {}", dt_exp);
+
+    // Correct t_exp if not equally spaced (and correct t0_exp so it is a multiple of dt_exp)
+    t0_exp = round(t0_exp / dt_exp) * dt_exp;
+    for (long i = 0; i < t_exp.size(); i ++) {
+        t_exp[i] = t0_exp + static_cast<double>(i) * dt_exp;
+    }
 
     auto X_exp = data.at("experimental_data").at("X_exp").get<std::vector<double>>();
 
@@ -278,6 +285,18 @@ int main(int argc, char ** argv) {
     };
 
     auto X = solve_model(input_data.fixed_parameters, fitted_parameters, input_data.t_exp.size(), input_data.N_reactors);
+
+    // Calculate fit statistics
+    double SSR = 0.0;
+    for (long i = 0; i < X[0].size(); i ++) {
+        double residual = (X[0][i] - input_data.X_exp[i]);
+        SSR += residual * residual;
+    }
+
+    double sigma_sq = SSR / static_cast<double>(X[0].size() - 5);
+
+    Eigen::Matrix2Xd J(X[0].size(), 5);
+
 
     ordered_json out_data;
     out_data["solution"]["k_ads"] = S_EXP(theta[0]);
