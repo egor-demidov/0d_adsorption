@@ -9,6 +9,8 @@
 !paper_plots/
 !paper_plots/**
 
+paper_plots/figure_5/combo_1/run_*/
+
 !.gitignore
 !CMakeLists.txt
 !*.cpp

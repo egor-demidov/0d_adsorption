@@ -1,30 +1,23 @@
 import json
 import numpy as np
 import matplotlib.pyplot as plt
+import sys
 
+def add_noise(noise_magnitude, seed, path_in, path_out):
 
-DURATION = 100
-NOISE_MAGNITUDE = 5.0e8
-SUFFIX = 4
+    np.random.seed(seed=seed)
 
-np.random.seed(seed=7899515)
-
-PATH_IN = f'combo_1/run_{DURATION}.json'
-PATH_OUT = f'combo_1/run_{DURATION}_noise_{SUFFIX}.json'
-
-def main():
-
-    with open(PATH_IN, 'r') as in_f:
+    with open(path_in, 'r') as in_f:
         in_data = json.load(in_f)
 
     t = np.array(in_data["solution"]["t"])
     X = np.array(in_data["solution"]["X"])
 
-    noise = (np.random.rand(X.shape[0]) - 0.5) / 0.5 * NOISE_MAGNITUDE
+    noise = (np.random.rand(X.shape[0]) - 0.5) / 0.5 * noise_magnitude
 
     X += noise
 
-    with open(PATH_OUT, 'w') as out_f:
+    with open(path_out, 'w') as out_f:
         out_data = {
             "solution": {
                 "t": list(t),
@@ -33,8 +26,18 @@ def main():
         }
         json.dump(out_data, out_f, indent=4)
 
-    plt.plot(t, X)
-    plt.show()
+    # plt.plot(t, X)
+    # plt.show()
 
 if __name__ == '__main__':
-    main()
+
+    if len(sys.argv) < 5:
+        print('Three arguments must be provided: noise magnitude, seed, input path, and output path', file=sys.stderr)
+        exit(-1)
+
+    NOISE_MAGNITUDE = float(sys.argv[1])
+    SEED = int(sys.argv[2])
+    PATH_IN = sys.argv[3]
+    PATH_OUT = sys.argv[4]
+
+    add_noise(NOISE_MAGNITUDE, SEED, PATH_IN, PATH_OUT)
