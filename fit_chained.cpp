@@ -68,7 +68,7 @@ struct ResidualFunctor final : public ceres::CostFunction {
         long alignment_steps = 100;
         while (!almost_equal(model.get_t(), t0_exp_) && alignment_steps > 0) {
             model.do_step();
-            fmt::println("{} {}", t0_exp_, model.get_t());
+            // fmt::println("{} {}", t0_exp_, model.get_t());
             alignment_steps --;
         }
 
@@ -295,7 +295,7 @@ int main(int argc, char ** argv) {
 
     double sigma_sq = SSR / static_cast<double>(X[0].size() - 5);
 
-    Eigen::Matrix2d J(X[0].size(), 5);
+    Eigen::MatrixXd J(X[0].size(), 5);
 
     for (long i = 0; i < X[0].size(); i ++) {
         for (long j = 0; j < 5; j ++) {
@@ -303,10 +303,7 @@ int main(int argc, char ** argv) {
         }
     }
 
-    Eigen::Matrix2d cov = sigma_sq * (J.transpose() * J).inverse();
-    for (long j = 0; j < 5; j ++) {
-        fmt::println("Uncertainty: {}", sqrt(cov(j, j)));
-    }
+    Eigen::MatrixXd cov = sigma_sq * (J.transpose() * J).inverse();
 
     // J_ij = df(x_i)/dk_j
     // cov = sigma_sq * (J^T*J)^-1
@@ -318,6 +315,11 @@ int main(int argc, char ** argv) {
     out_data["solution"]["k_rxn"] = S_EXP(theta[2]);
     out_data["solution"]["S_tot"] = S_EXP(theta[3]);
     out_data["solution"]["Y_tot"] = S_EXP(theta[4]);
+    out_data["standard_error"]["k_ads"] = S_EXP(sqrt(cov(0, 0)));
+    out_data["standard_error"]["k_des"] = S_EXP(sqrt(cov(1, 1)));
+    out_data["standard_error"]["k_rxn"] = S_EXP(sqrt(cov(2, 2)));
+    out_data["standard_error"]["S_tot"] = S_EXP(sqrt(cov(3, 3)));
+    out_data["standard_error"]["Y_tot"] = S_EXP(sqrt(cov(4, 4)));
     out_data["fitted_data"]["X0"] = X0[0];
     out_data["fitted_data"]["X"] = X[0];
     out_data["fitted_data"]["Xgs"] = X[1];
