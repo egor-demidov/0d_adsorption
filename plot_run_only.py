@@ -3,7 +3,10 @@ import json
 import numpy as np
 
 
-with open(f'run_only/run.json', 'r') as f:
+# with open(f'run_only/run.json', 'r') as f:
+#     run = json.load(f)
+
+with open(f'paper_plots/figure_5/combo_1/run_600_noise.json', 'r') as f:
     run = json.load(f)
 
 fig, ax = plt.subplots()
