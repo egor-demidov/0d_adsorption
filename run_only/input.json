@@ -9,7 +9,7 @@
     "t_ads_end": 700.0,
     "t_tot": 1000.0,
     "k_ads_smooth": 2.0,
-    "N_t": 300,
+    "N_t": 1000,
     "fitted_parameters": {
         "k_ads": 4.5e-12,
         "k_des": 0.05,
