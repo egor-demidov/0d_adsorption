@@ -36,6 +36,24 @@ for duration in run_durations:
 for curve in uptake_curves:
     ax1.plot(ts, curve)
 
+ax1.plot([100.0, 100.0], [2.8e10, 2.94e10], '-k')
+ax1.plot([700.0, 700.0], [2.8e10, 2.94e10], '-k')
+ax1.plot([100.0, 700.0], [2.8e10, 2.8e10], '--k')
+ax1.text(400.0, 2.73e10, 'Exposure', ha='center', va='top')
+
+# Create inset axes
+axins = inset_axes(ax1, width="60%", height="45%", loc="lower right")
+
+# Read data file with noise
+with open('combo_1/run_600_noise.json', 'r') as f:
+    data_noise = json.load(f)
+
+axins.plot(data_noise['solution']['t'], data_noise['solution']['X'], color='tab:brown')
+
+# Remove ticks (optional)
+axins.set_xticks([])
+axins.set_yticks([])
+
 ax1.set_xlabel(R'Time, $\rm s$')
 ax1.set_ylabel(R'X concentration, $\rm cm^{-3}$')
 
@@ -105,5 +123,22 @@ ax4.set_ylabel('R.M.S. error, %')
 ax4.set_xlabel(R'Exposure time, $\rm s$')
 ax4.legend()
 
+# Add a,b,c,d labels
+for ax, label in zip((ax1, ax2, ax3, ax4), string.ascii_lowercase):
+    ax.text(
+        0.04, 0.96,                # position (x,y) in axes coords
+        f'({label})',
+        transform=ax.transAxes,    # use axes coordinates (0–1)
+        fontsize=13,
+        fontweight='bold',
+        va='top',
+        ha='left'
+    )
+
+ax2.set_ylim(bottom=None, top=57.0)
+ax3.set_ylim(bottom=None, top=43.0)
+ax4.set_ylim(bottom=None, top=69.0)
+
 plt.tight_layout()
+plt.savefig('figure_5.pdf')
 plt.show()
