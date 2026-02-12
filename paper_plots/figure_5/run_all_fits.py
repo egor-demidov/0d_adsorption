@@ -1,7 +1,7 @@
 import subprocess
 from generate_data_with_noise import DURATIONS, PREFIX, SEEDS
 
-EXECUTABLE_PATH = '../../build-release/0d_adsorption_fit_chained.exe'
+EXECUTABLE_PATH = '../../build-release/0d_adsorption_fit_chained'
 
 for duration in DURATIONS:
     parent_dir = PREFIX / f'run_{duration}'

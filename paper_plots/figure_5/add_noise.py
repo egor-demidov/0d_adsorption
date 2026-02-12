@@ -10,7 +10,7 @@ freq_hi = 1.0   # Number of noise points / experimental point (high frequency no
 # cum. noise magnitude: 5.0e7
 # rand. noise magnitude: 2.0e8
 # freq_lo: 300
-# low freq. rand. noise magnitude: 1.0e8
+# high freq. rand. noise magnitude: 1.0e8
 # freq_hi: 1000
 # Seed used for testing: 486489
 # Input used for testing: combo_1/run_600.json
