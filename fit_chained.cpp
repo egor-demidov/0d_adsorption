@@ -295,8 +295,22 @@ int main(int argc, char ** argv) {
 
     double sigma_sq = SSR / static_cast<double>(X[0].size() - 5);
 
-    Eigen::Matrix2Xd J(X[0].size(), 5);
+    Eigen::Matrix2d J(X[0].size(), 5);
 
+    for (long i = 0; i < X[0].size(); i ++) {
+        for (long j = 0; j < 5; j ++) {
+            J(i, j) = X[j+4][i];
+        }
+    }
+
+    Eigen::Matrix2d cov = sigma_sq * (J.transpose() * J).inverse();
+    for (long j = 0; j < 5; j ++) {
+        fmt::println("Uncertainty: {}", sqrt(cov(j, j)));
+    }
+
+    // J_ij = df(x_i)/dk_j
+    // cov = sigma_sq * (J^T*J)^-1
+    // std. err j = sqrt(cov_jj)
 
     ordered_json out_data;
     out_data["solution"]["k_ads"] = S_EXP(theta[0]);
