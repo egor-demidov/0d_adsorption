@@ -3,7 +3,7 @@ import json
 import numpy as np
 
 
-DATASET = 'NaCl-2'
+DATASET = 'levoglucosan'
 
 with open(f'uptake_curve_processing/{DATASET}/drift_corrected.json', 'r') as f:
     exp_data = json.load(f)
