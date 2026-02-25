@@ -17,23 +17,23 @@
 class Model {
 public:
     struct FixedParameters {
-        const sunrealtype Di;
-        const sunrealtype R;
-        const sunrealtype L;
-        const sunrealtype F;
-        const sunrealtype X_feed;
-        const sunrealtype t_ads_start;
-        const sunrealtype t_ads_end;
-        const sunrealtype k_ads_smooth;
-        const sunrealtype dt;
+        sunrealtype Di;
+        sunrealtype R;
+        sunrealtype L;
+        sunrealtype F;
+        sunrealtype X_feed;
+        sunrealtype t_ads_start;
+        sunrealtype t_ads_end;
+        sunrealtype k_ads_smooth;
+        sunrealtype dt;
     };
 
     struct FittedParameters {
-        /*const*/ sunrealtype k_ads;
-        const sunrealtype k_des;
-        const sunrealtype k_rxn;
-        const sunrealtype S_tot;
-        const sunrealtype P_tot;
+        sunrealtype k_ads;
+        sunrealtype k_des;
+        sunrealtype k_rxn;
+        sunrealtype S_tot;
+        sunrealtype P_tot;
     };
 
     Model(FixedParameters const & fixed_parameters, FittedParameters const & fitted_parameters, int N_reactors);
@@ -69,11 +69,13 @@ public:
         return t_out;
     }
 
+    void reset_model(FittedParameters const & new_fitted_parameters);
+
 private:
     struct DerivedParameters {
-        const sunrealtype V;
-        const sunrealtype k_diff;
-        const sunrealtype a;
+        sunrealtype V;
+        sunrealtype k_diff;
+        sunrealtype a;
     };
 
     // ODE right hand side
@@ -100,10 +102,10 @@ private:
     // Parameter count
     const int N_reactors_;
     const int NP, NX, N;
-    sunindextype B, mu, ml;
+    const sunindextype B, mu, ml;
 
     const FixedParameters fixed_parameters_;
-    const FittedParameters fitted_parameters_;
+    FittedParameters fitted_parameters_;
     const DerivedParameters derived_parameters_;
 
     SUNContext sunctx_;
