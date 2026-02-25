@@ -100,6 +100,7 @@ private:
     // Parameter count
     const int N_reactors_;
     const int NP, NX, N;
+    sunindextype B, mu, ml;
 
     const FixedParameters fixed_parameters_;
     const FittedParameters fitted_parameters_;

@@ -14,6 +14,10 @@
 #include <sunlinsol/sunlinsol_dense.h>   // SUNLinSol_Dense
 #include <sundials/sundials_math.h>      // SUNRabs
 
+// Banded matrix definitions
+#include <sunmatrix/sunmatrix_band.h>
+#include <sunlinsol/sunlinsol_band.h>
+
 #include <fmt/format.h>
 
 #include "model_chained.h"
@@ -97,8 +101,16 @@ Model::Model(FixedParameters const & fixed_parameters, FittedParameters const & 
   if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeSStolerances failed\n"); exit(EXIT_FAILURE); }
 
   // Dense linear solver + dense Jacobian
-  A_ = SUNDenseMatrix(N, N, sunctx_);;
-  LS_ = SUNLinSol_Dense(y_, A_, sunctx_);
+  // A_ = SUNDenseMatrix(N, N, sunctx_);;
+  // LS_ = SUNLinSol_Dense(y_, A_, sunctx_);
+
+  // choose bandwidths (safe values for your packing)
+  B = NX * (1 + NP);      // 24
+  mu = B - 1;             // upper bandwidth within block
+  ml = 2*B - 1;           // safe lower bandwidth for your packing
+
+  A_  = SUNBandMatrix(N, mu, ml, sunctx_);
+  LS_ = SUNLinSol_Band(y_, A_, sunctx_);
 
   flag = CVodeSetLinearSolver(cvode_mem_, LS_, A_);
   if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeSetLinearSolver failed\n"); exit(EXIT_FAILURE); }
@@ -253,14 +265,20 @@ int Model::jac(sunrealtype t, N_Vector y, N_Vector fy, SUNMatrix J,
 
   sunrealtype* Y = N_VGetArrayPointer(y);
 
-  auto setJ = [&](int row, int col, sunrealtype val) {
-    SM_ELEMENT_D(J, row, col) = val;
+  // auto setJ = [&](int row, int col, sunrealtype val) {
+  //   SM_ELEMENT_D(J, row, col) = val;
+  // };
+  auto setJ = [&](sunindextype row, sunindextype col, sunrealtype val) {
+    // Only set if (row,col) lies inside the stored band.
+    const sunindextype r = row;
+    const sunindextype c = col;
+    if ((c <= r + mu) && (r <= c + ml)) {
+      SM_ELEMENT_B(J, r, c) = val;
+    }
   };
 
-  // Zero J (N can be big, but still fine for moderate N. For large N use band/sparse.)
-  for (int r = 0; r < N; ++r)
-    for (int c = 0; c < N; ++c)
-      setJ(r, c, 0.0);
+  // Zero J
+  SUNMatZero(J);
 
   // Loop reactors
   for (int n = 0; n < N_reactors_; ++n) {
