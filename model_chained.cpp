@@ -104,8 +104,8 @@ Model::Model(FixedParameters const & fixed_parameters, FittedParameters const & 
   if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeSetLinearSolver failed\n"); exit(EXIT_FAILURE); }
 
 
-  // flag = CVodeSetJacFn(cvode_mem_, jac_cvode);
-  flag = CVodeSetJacFn(cvode_mem_, nullptr);
+  flag = CVodeSetJacFn(cvode_mem_, jac_cvode);
+  // flag = CVodeSetJacFn(cvode_mem_, nullptr);
   if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeSetJacFn failed\n"); exit(EXIT_FAILURE); }
 }
 
@@ -183,6 +183,13 @@ int Model::rhs(sunrealtype t, N_Vector y, N_Vector ydot) const {
 
       // A*s
       sunrealtype As0 = A11*sX + A12*sXgs;
+
+      // add upstream sensitivity coupling through Xprev = X_{n-1}
+      if (n > 0) {
+        const sunrealtype sX_prev = Y[sbase(n-1, j) + 0];
+        As0 += a * sX_prev;
+      }
+
       sunrealtype As1 = A21*sX + A22*sXgs + A23*sXs;
       sunrealtype As2 = A32*sXgs + A33*sXs + A34*sP;
       sunrealtype As3 = A43*sXs + A44*sP;
@@ -227,7 +234,10 @@ int Model::rhs(sunrealtype t, N_Vector y, N_Vector ydot) const {
 
 }
 
-int Model::jac(sunrealtype t, N_Vector y, N_Vector fy, SUNMatrix J, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3) const {
+int Model::jac(sunrealtype t, N_Vector y, N_Vector fy, SUNMatrix J,
+               N_Vector tmp1, N_Vector tmp2, N_Vector tmp3) const
+{
+  (void)fy; (void)tmp1; (void)tmp2; (void)tmp3;
 
   const sunrealtype k_de = fitted_parameters_.k_des;
   const sunrealtype k_r  = fitted_parameters_.k_rxn;
@@ -237,150 +247,164 @@ int Model::jac(sunrealtype t, N_Vector y, N_Vector fy, SUNMatrix J, N_Vector tmp
   const sunrealtype k_d  = derived_parameters_.k_diff;
   const sunrealtype a    = derived_parameters_.a;
   const sunrealtype R    = fixed_parameters_.R;
-  const sunrealtype ft   = f_of_t(t);
+
+  const sunrealtype ft     = f_of_t(t);
   const sunrealtype k_a_eff = fitted_parameters_.k_ads * ft;
-  // const sunrealtype k_a_eff = fitted_parameters_.k_ads;
 
   sunrealtype* Y = N_VGetArrayPointer(y);
 
-  const sunrealtype X   = Y[0];
-  const sunrealtype Xgs = Y[1];
-  const sunrealtype Xs  = Y[2];
-  const sunrealtype P   = Y[3];
-
-  // ---- A = df/dx ----
-  const sunrealtype A11 = -a - k_d;
-  const sunrealtype A12 =  k_d;
-
-  const sunrealtype A21 =  k_d;
-  const sunrealtype A22 = -k_d - (2.0/R)*k_a_eff*(S - Xs);
-  const sunrealtype A23 =  (2.0/R)*k_a_eff*Xgs + k_de;
-
-  const sunrealtype A32 =  k_a_eff*(S - Xs);
-  const sunrealtype A33 = -k_a_eff*Xgs - (R/2.0)*k_de - k_r*(PT - P);
-  const sunrealtype A34 =  k_r*Xs;
-
-  const sunrealtype A43 =  k_r*(PT - P);
-  const sunrealtype A44 = -k_r*Xs;
-
-  // Helper to set dense matrix entry
   auto setJ = [&](int row, int col, sunrealtype val) {
     SM_ELEMENT_D(J, row, col) = val;
   };
 
-  // Zero J first (24x24 is tiny; simplest/robust)
+  // Zero J (N can be big, but still fine for moderate N. For large N use band/sparse.)
   for (int r = 0; r < N; ++r)
     for (int c = 0; c < N; ++c)
-      setJ(r,c,0.0);
+      setJ(r, c, 0.0);
 
-  // Top-left block: A
-  setJ(0,0, A11); setJ(0,1, A12);
-  setJ(1,0, A21); setJ(1,1, A22); setJ(1,2, A23);
-  setJ(2,1, A32); setJ(2,2, A33); setJ(2,3, A34);
-  setJ(3,2, A43); setJ(3,3, A44);
+  // Loop reactors
+  for (int n = 0; n < N_reactors_; ++n) {
 
-  // For each sensitivity block j:
-  // diagonal block = A, and left block = D^(j) = d/dx (A*s + b^(j))
-  for (int j = 0; j < NP; ++j) {
-    const int b = sbase(0, j);
+    // State indices for this reactor
+    const int xX   = xbase(n, 0);
+    const int xXgs = xbase(n, 1);
+    const int xXs  = xbase(n, 2);
+    const int xP   = xbase(n, 3);
 
-    const sunrealtype sX   = Y[b+0];
-    const sunrealtype sXgs = Y[b+1];
-    const sunrealtype sXs  = Y[b+2];
-    const sunrealtype sP   = Y[b+3];
+    // Current reactor states
+    const sunrealtype X   = Y[xX];
+    const sunrealtype Xgs = Y[xXgs];
+    const sunrealtype Xs  = Y[xXs];
+    const sunrealtype P   = Y[xP];
 
-    // ---- Put diagonal A into block (b..b+3, b..b+3) ----
-    setJ(b+0, b+0, A11); setJ(b+0, b+1, A12);
+    // ---- A(n) = df_n/dx_n ----
+    const sunrealtype A11 = -a - k_d;
+    const sunrealtype A12 =  k_d;
 
-    setJ(b+1, b+0, A21); setJ(b+1, b+1, A22); setJ(b+1, b+2, A23);
+    const sunrealtype A21 =  k_d;
+    const sunrealtype A22 = -k_d - (2.0/R)*k_a_eff*(S - Xs);
+    const sunrealtype A23 =  (2.0/R)*k_a_eff*Xgs + k_de;
 
-    setJ(b+2, b+1, A32); setJ(b+2, b+2, A33); setJ(b+2, b+3, A34);
+    const sunrealtype A32 =  k_a_eff*(S - Xs);
+    const sunrealtype A33 = -k_a_eff*Xgs - (R/2.0)*k_de - k_r*(PT - P);
+    const sunrealtype A34 =  k_r*Xs;
 
-    setJ(b+3, b+2, A43); setJ(b+3, b+3, A44);
+    const sunrealtype A43 =  k_r*(PT - P);
+    const sunrealtype A44 = -k_r*Xs;
 
-    // ---- Build D^(j) columns via:
-    // col_X     = 0
-    // col_Xgs   = (dA/dXgs)*s + db/dXgs
-    // col_Xs    = (dA/dXs)*s  + db/dXs
-    // col_P     = (dA/dP)*s   + db/dP
+    // ---- State block (x_n wrt x_n) ----
+    setJ(xX,   xX,   A11);  setJ(xX,   xXgs, A12);
 
-    // (dA/dXgs)*s = [0, (2/R)k_a*sXs, -k_a*sXs, 0]^T
-    const sunrealtype dA_Xgs_0 = 0.0;
-    const sunrealtype dA_Xgs_1 = (2.0/R)*k_a_eff*sXs;
-    const sunrealtype dA_Xgs_2 = -k_a_eff*sXs;
-    const sunrealtype dA_Xgs_3 = 0.0;
+    setJ(xXgs, xX,   A21);  setJ(xXgs, xXgs, A22);  setJ(xXgs, xXs, A23);
 
-    // (dA/dXs)*s = [0, (2/R)k_a*sXgs, -k_a*sXgs, 0]^T
-    const sunrealtype dA_Xs_0 = 0.0;
-    const sunrealtype dA_Xs_1 = (2.0/R)*k_a_eff*sXgs;
-    const sunrealtype dA_Xs_2 = -k_a_eff*sXgs;
-    const sunrealtype dA_Xs_3 = 0.0;
+    setJ(xXs,  xXgs, A32);  setJ(xXs,  xXs,  A33);  setJ(xXs,  xP,  A34);
 
-    // (dA/dP)*s = [0, 0, k_r*sXs, -k_r*sXs]^T
-    const sunrealtype dA_P_0 = 0.0;
-    const sunrealtype dA_P_1 = 0.0;
-    const sunrealtype dA_P_2 = k_r*sXs;
-    const sunrealtype dA_P_3 = -k_r*sXs;
+    setJ(xP,   xXs,  A43);  setJ(xP,   xP,   A44);
 
-    // db/d(state) depends on j:
-    // initialize to 0
-    sunrealtype db_Xgs_0=0, db_Xgs_1=0, db_Xgs_2=0, db_Xgs_3=0;
-    sunrealtype db_Xs_0 =0, db_Xs_1 =0, db_Xs_2 =0, db_Xs_3 =0;
-    sunrealtype db_P_0  =0, db_P_1  =0, db_P_2  =0, db_P_3  =0;
-
-    switch (j) {
-      case 0: // k_ads: b = [0, -(2/R)Xgs(S-Xs), Xgs(S-Xs), 0]
-        db_Xgs_1 = -(2.0/R)*(S - Xs)*ft;
-        db_Xgs_2 =  (S - Xs)*ft;
-        db_Xs_1  =  (2.0/R)*Xgs*ft;
-        db_Xs_2  = -Xgs*ft;
-        break;
-      case 1: // k_des: b = [0, Xs, -(R/2)Xs, 0]
-        db_Xs_1  =  1.0;
-        db_Xs_2  = -(R/2.0);
-        break;
-      case 2: // k_rxn: b = [0,0, -Xs(PT-P), +Xs(PT-P)]
-        db_Xs_2  = -(PT - P);
-        db_Xs_3  =  (PT - P);
-        db_P_2   =  Xs;
-        db_P_3   = -Xs;
-        break;
-      case 3: // S_tot: b = [0, -(2/R)k_a Xgs, k_a Xgs, 0]
-        db_Xgs_1 = -(2.0/R)*k_a_eff;
-        db_Xgs_2 =  k_a_eff;
-        break;
-      case 4: // P_tot: b = [0,0, -k_r Xs, +k_r Xs]
-        db_Xs_2  = -k_r;
-        db_Xs_3  =  k_r;
-        break;
-      default:
-        break;
+    // ---- Chain coupling in state equation: d(dX_n)/d(X_{n-1}) = a ----
+    if (n > 0) {
+      const int xX_prev = xbase(n-1, 0);
+      setJ(xX, xX_prev, a);
     }
 
-    // Now assemble D^(j) columns (4x4). Column order is [X, Xgs, Xs, P].
-    // Column X is zero -> no need to set (already zero).
+    // ---- Sensitivity blocks ----
+    for (int j = 0; j < NP; ++j) {
+      const int b = sbase(n, j);
 
-    // Column Xgs:
-    setJ(b+0, 1, dA_Xgs_0 + db_Xgs_0);
-    setJ(b+1, 1, dA_Xgs_1 + db_Xgs_1);
-    setJ(b+2, 1, dA_Xgs_2 + db_Xgs_2);
-    setJ(b+3, 1, dA_Xgs_3 + db_Xgs_3);
+      const sunrealtype sX   = Y[b+0];
+      const sunrealtype sXgs = Y[b+1];
+      const sunrealtype sXs  = Y[b+2];
+      const sunrealtype sP   = Y[b+3];
 
-    // Column Xs:
-    setJ(b+0, 2, dA_Xs_0 + db_Xs_0);
-    setJ(b+1, 2, dA_Xs_1 + db_Xs_1);
-    setJ(b+2, 2, dA_Xs_2 + db_Xs_2);
-    setJ(b+3, 2, dA_Xs_3 + db_Xs_3);
+      // Diagonal sensitivity block: d(sdot)/d(s) = A(n)
+      setJ(b+0, b+0, A11); setJ(b+0, b+1, A12);
 
-    // Column P:
-    setJ(b+0, 3, dA_P_0 + db_P_0);
-    setJ(b+1, 3, dA_P_1 + db_P_1);
-    setJ(b+2, 3, dA_P_2 + db_P_2);
-    setJ(b+3, 3, dA_P_3 + db_P_3);
+      setJ(b+1, b+0, A21); setJ(b+1, b+1, A22); setJ(b+1, b+2, A23);
 
-    // NOTE: these entries fill D^(j) into columns of the *state* block (0..3).
-    // We used columns 1,2,3 explicitly; column 0 remains zero. That matches:
-    // D^(j)_{:,X}=0, D^(j)_{:,Xgs}, D^(j)_{:,Xs}, D^(j)_{:,P}.
+      setJ(b+2, b+1, A32); setJ(b+2, b+2, A33); setJ(b+2, b+3, A34);
+
+      setJ(b+3, b+2, A43); setJ(b+3, b+3, A44);
+
+      // Chain coupling in sensitivity equation for sX:
+      // sdotX_n = ... + a*sX_{n-1}
+      if (n > 0) {
+        setJ(b+0, sbase(n-1, j) + 0, a);
+      }
+
+      // ---- dA/d(state)*s terms (same as single reactor, local) ----
+      // (dA/dXgs)*s = [0, (2/R)k_a*sXs, -k_a*sXs, 0]^T
+      const sunrealtype dA_Xgs_0 = 0.0;
+      const sunrealtype dA_Xgs_1 = (2.0/R)*k_a_eff*sXs;
+      const sunrealtype dA_Xgs_2 = -k_a_eff*sXs;
+      const sunrealtype dA_Xgs_3 = 0.0;
+
+      // (dA/dXs)*s = [0, (2/R)k_a*sXgs, -k_a*sXgs, 0]^T
+      const sunrealtype dA_Xs_0  = 0.0;
+      const sunrealtype dA_Xs_1  = (2.0/R)*k_a_eff*sXgs;
+      const sunrealtype dA_Xs_2  = -k_a_eff*sXgs;
+      const sunrealtype dA_Xs_3  = 0.0;
+
+      // (dA/dP)*s = [0, 0, k_r*sXs, -k_r*sXs]^T
+      const sunrealtype dA_P_0 = 0.0;
+      const sunrealtype dA_P_1 = 0.0;
+      const sunrealtype dA_P_2 =  k_r*sXs;
+      const sunrealtype dA_P_3 = -k_r*sXs;
+
+      // ---- db/d(state) depends on parameter j ----
+      sunrealtype db_Xgs_0=0, db_Xgs_1=0, db_Xgs_2=0, db_Xgs_3=0;
+      sunrealtype db_Xs_0 =0, db_Xs_1 =0, db_Xs_2 =0, db_Xs_3 =0;
+      sunrealtype db_P_0  =0, db_P_1  =0, db_P_2  =0, db_P_3  =0;
+
+      switch (j) {
+        case 0: // k_ads0
+          db_Xgs_1 = -(2.0/R)*(S - Xs)*ft;
+          db_Xgs_2 =  (S - Xs)*ft;
+          db_Xs_1  =  (2.0/R)*Xgs*ft;
+          db_Xs_2  = -Xgs*ft;
+          break;
+        case 1: // k_des
+          db_Xs_1  =  1.0;
+          db_Xs_2  = -(R/2.0);
+          break;
+        case 2: // k_rxn
+          db_Xs_2  = -(PT - P);
+          db_Xs_3  =  (PT - P);
+          db_P_2   =  Xs;
+          db_P_3   = -Xs;
+          break;
+        case 3: // S_tot
+          db_Xgs_1 = -(2.0/R)*k_a_eff;
+          db_Xgs_2 =  k_a_eff;
+          break;
+        case 4: // P_tot
+          db_Xs_2  = -k_r;
+          db_Xs_3  =  k_r;
+          break;
+        default:
+          break;
+      }
+
+      // ---- Fill D(n,j) into columns of THIS reactor's state block ----
+      // Column xX is zero (A and b do not depend on X explicitly), so skip.
+
+      // Column Xgs
+      setJ(b+0, xXgs, dA_Xgs_0 + db_Xgs_0);
+      setJ(b+1, xXgs, dA_Xgs_1 + db_Xgs_1);
+      setJ(b+2, xXgs, dA_Xgs_2 + db_Xgs_2);
+      setJ(b+3, xXgs, dA_Xgs_3 + db_Xgs_3);
+
+      // Column Xs
+      setJ(b+0, xXs,  dA_Xs_0  + db_Xs_0);
+      setJ(b+1, xXs,  dA_Xs_1  + db_Xs_1);
+      setJ(b+2, xXs,  dA_Xs_2  + db_Xs_2);
+      setJ(b+3, xXs,  dA_Xs_3  + db_Xs_3);
+
+      // Column P
+      setJ(b+0, xP,   dA_P_0   + db_P_0);
+      setJ(b+1, xP,   dA_P_1   + db_P_1);
+      setJ(b+2, xP,   dA_P_2   + db_P_2);
+      setJ(b+3, xP,   dA_P_3   + db_P_3);
+    }
   }
 
   return 0;
