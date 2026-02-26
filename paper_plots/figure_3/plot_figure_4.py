@@ -49,7 +49,7 @@ for ax, parameter, label, color in data_index:
     ax.plot(exp_data['experimental_data']['t_exp'], fitted_data['fitted_data']['X'], '-k')
     ax2 = ax.twinx()
     ax2.plot(exp_data['experimental_data']['t_exp'], np.array(fitted_data['sensitivities'][curve]) * parameter_value, color=color)
-    ax2.set_ylim(np.array([-15.0, 12.0]) * 1.0e8)
+    ax2.set_ylim(np.array([-75.0, 60.0]) * 1.0e8)
 
     ax.set_ylabel(R'X concentration, $\rm cm^{-3}$')
     ax.set_xlabel(R'Time, $\rm s$')

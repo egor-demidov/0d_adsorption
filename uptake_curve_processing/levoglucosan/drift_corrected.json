@@ -4,7 +4,7 @@
     "L": 5,
     "X_in": 8268185491.677341,
     "X_feed": 8268185491.677341,
-    "N_reactors": 5,
+    "N_reactors": 10,
     "pressure": 1.924,
     "t_ads_start": 161.88,
     "t_ads_end": 296.28,
