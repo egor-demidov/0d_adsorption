@@ -29,3 +29,4 @@ dist/bin/**
 !dist/bin/*.cmd
 
 !update_dist.ps1
+!update_dist.sh

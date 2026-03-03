@@ -8,7 +8,7 @@ A macOS terminal session is needed to follow this tutorial.
     is recommended:
 
         python3 -m venv venv    # Create a virtual environment called 'venv' (only done ONCE)
-        .\venv\Scripts\activate # Activate the created virtual environment
+        ./venv/bin/activate     # Activate the created virtual environment
 
     Once a virtual environment has been created and activated, dependencies need to be installed into the environment.
     That can be done with:
@@ -17,7 +17,7 @@ A macOS terminal session is needed to follow this tutorial.
 
      Finally, the folder with scripts and executables needs to be added to Path:
 
-        $env:PATH += ";$((Get-Location).Path)\bin"
+        export PATH="$(pwd)/bin:$PATH"
 
 
     STEP 1. PREPROCESSING
@@ -25,8 +25,8 @@ A macOS terminal session is needed to follow this tutorial.
     Python script. The script performs drift correction, detects times at which adsorption and desorption occur,
     and generates an input file compatible with the CSTR model in .json format. To preprocess the example, run:
 
-        cd .\example\
-        preprocess .\uptake_curve.xlsx --worksheet "NaCl-2" --output nacl-2.json
+        cd example
+        preprocess.py uptake_curve.xlsx --worksheet "NaCl-2" --output nacl-2.json
 
     A plot window will appear. Following the uptake curve from left to right, the user needs to click on the uptake
     curve at points where is known to be zero. The curve will be shifted up/down accordingly to correct for signal
@@ -42,7 +42,7 @@ A macOS terminal session is needed to follow this tutorial.
 
     To attempt to fit preprocessed experimental data to the CSTR model, run:
 
-        0d_adsorption_fit_chained.exe .\nacl-2.json
+        0d_adsorption_fit_chained nacl-2.json
 
     If the run was successful, "Termination: CONVERGENCE" will be printed on the last line of standard output. If the
     run failed, initial guesses may need to be adjusted.
@@ -54,7 +54,7 @@ A macOS terminal session is needed to follow this tutorial.
     at the solution (X), and sensitivities. The solution can be quickly visualized and evaluated for correctness by
     running:
 
-        plot_fitted_curve --input nacl-2.json --solution fitted.json
+        plot_fitted_curve.py --input nacl-2.json --solution fitted.json
 
     If the "k_ads_smooth" parameter is not appropriate, peaks on the simulated uptake curve will be too sharp or too
     smooth and the fit will be poor. If that happens, "k_ads_smooth" needs to be adjusted and the curve - refitted until
@@ -69,10 +69,10 @@ A macOS terminal session is needed to follow this tutorial.
     of the fitter, duration is determined automatically based on provided experimental data and "t_tot" does not need
     to be supplied separately. To run the provided example:
 
-        0d_adsorption_chained.exe .\run_only_input.json
+        0d_adsorption_chained run_only_input.json
 
     Computed uptake curve is stored in a file named "run.json". To display the generated curve, run:
 
-        plot_run_only .\run.json
+        plot_run_only.py run.json
 
 
