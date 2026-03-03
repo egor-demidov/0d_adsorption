@@ -17,3 +17,15 @@ paper_plots/figure_5/combo_1/run_*/
 !*.py
 !*.json
 !*.h
+
+!dist/
+!dist/example/
+dist/example/**
+!dist/example/*.xlsx
+!dist/example/run_only_input.json
+!dist/*.txt
+!dist/bin/
+dist/bin/**
+!dist/bin/*.cmd
+
+!update_dist.ps1

@@ -1,14 +1,20 @@
 import matplotlib.pyplot as plt
 import json
 import numpy as np
+import argparse
 
 
-DATASET = 'NaCl-2'
+parser = argparse.ArgumentParser(description="Plot of fitted data")
 
-with open(f'uptake_curve_processing/{DATASET}/drift_corrected.json', 'r') as f:
+parser.add_argument("--input", required=True, help="Name of JSON file with fitter input")
+parser.add_argument("--solution", required=True, help="Name of JSON file with fitter solution")
+
+args = parser.parse_args()
+
+with open(args.input, 'r') as f:
     exp_data = json.load(f)
 
-with open(f'uptake_curve_processing/{DATASET}/fitted.json', 'r') as f:
+with open(args.solution, 'r') as f:
     fitted_data = json.load(f)
 
 # DATASET = '100'

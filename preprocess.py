@@ -5,16 +5,24 @@ from scipy.signal import savgol_filter, find_peaks
 import pandas as pd
 import openpyxl as xl
 import json
+import argparse
+from pathlib import Path
 
+parser = argparse.ArgumentParser(description="Preprocessing of uptake curves")
 
-file_name = 'uptake_curve_processing/uptake_curves.xlsx'
-sheet_name = 'levoglucosan'
+parser.add_argument("input", help="Path to excel workbook")
+parser.add_argument("--worksheet", required=True, help="Name of the worksheet containing the uptake curve")
+parser.add_argument("--output", default="drift_corrected.json", help="Name of output file")
+
+args = parser.parse_args()
+
+file_name = Path(args.input)
+sheet_name = args.worksheet
 # median_filter_kernel = 51
-reactor_diameter = 1.56 # cm
-reactor_cross_section = np.pi * (reactor_diameter / 2.0) ** 2.0
-concentration_correction_factor = 1.0 / 8.0
-out_name = f'uptake_curve_processing/{sheet_name}/drift_corrected.json'
+out_name = Path(args.output)
 
+default_k_ads_smooth = 2.0
+default_n_reactors = 10
 default_initial_guess = {
     'k_ads': 2.628413090171913e-12,
     'k_des': 0.02358734401037852,
@@ -28,6 +36,10 @@ with open(file_name, 'rb') as file:
 
 xl_wb = xl.load_workbook(file_name)
 xl_ws = xl_wb[sheet_name]
+
+reactor_diameter = xl_ws['L2'].internal_value # cm
+reactor_cross_section = np.pi * (reactor_diameter / 2.0) ** 2.0
+concentration_correction_factor = 1.0 / 8.0
 
 # Normalize data
 data.signal /= data.signal[0]
@@ -121,11 +133,13 @@ class DriftCorrection:
             'F': flow_rate,
             'R': reactor_diameter / 2.0,
             'L': length,
-            'X_in': concentration,
+            'N_reactors': default_n_reactors,
+            'X_feed': concentration,
             'pressure': pressure,
             'Di': diffusion_coeff,
             't_ads_start': t_ads_start,
             't_ads_end': t_ads_end,
+            'k_ads_smooth': default_k_ads_smooth,
             'initial_guess': default_initial_guess,
             'experimental_data': {
                 't_exp': data.time.tolist(),

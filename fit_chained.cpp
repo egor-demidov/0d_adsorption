@@ -140,7 +140,51 @@ InputData load_input_data(std::filesystem::path const & input_file_path) {
 
     json data = json::parse(ifs);
 
-    auto t_exp = data.at("experimental_data").at("t_exp").get<std::vector<double>>();
+    auto require_object = [](const nlohmann::json& j, const std::string& key)
+    -> const nlohmann::json& {
+
+        if (!j.contains(key))
+            throw std::runtime_error("Missing required object: '" + key + "'");
+
+        if (!j.at(key).is_object())
+            throw std::runtime_error("'" + key + "' must be an object");
+
+        return j.at(key);
+    };
+
+    auto require_double = [](const nlohmann::json& j, const std::string& key) -> double {
+        if (!j.contains(key)) {
+            throw std::runtime_error("Missing required parameter: '" + key + "'");
+        }
+        if (!j.at(key).is_number()) {
+            throw std::runtime_error("Parameter '" + key + "' must be a number");
+        }
+        return j.at(key).get<double>();
+    };
+
+    auto require_double_vector = [](const nlohmann::json& j, const std::string& key) -> std::vector<double> {
+        if (!j.contains(key)) {
+            throw std::runtime_error("Missing required parameter: '" + key + "'");
+        }
+        if (!j.at(key).is_array()) {
+            throw std::runtime_error("Parameter '" + key + "' must be an array of numbers");
+        }
+        return j.at(key).get<std::vector<double>>();
+    };
+
+    auto require_long = [](const nlohmann::json& j, const std::string& key) -> long {
+        if (!j.contains(key)) {
+            throw std::runtime_error("Missing required parameter: '" + key + "'");
+        }
+        if (!j.at(key).is_number_integer()) {
+            throw std::runtime_error("Parameter '" + key + "' must be an integer");
+        }
+        return j.at(key).get<long>();
+    };
+
+    auto experimental_data = require_object(data, "experimental_data");
+
+    auto t_exp = require_double_vector(experimental_data, "t_exp");
 
     double t0_exp = t_exp[0];
     double dt_exp = 0.0;
@@ -157,34 +201,36 @@ InputData load_input_data(std::filesystem::path const & input_file_path) {
         t_exp[i] = t0_exp + static_cast<double>(i) * dt_exp;
     }
 
-    auto X_exp = data.at("experimental_data").at("X_exp").get<std::vector<double>>();
+    auto X_exp = require_double_vector(experimental_data, "X_exp");
 
     // std::rotate(X_exp.rbegin(), X_exp.rbegin() + 1, X_exp.rend());
     // std::rotate(X_exp.begin(), X_exp.begin() + 1, X_exp.end());
 
+    auto initial_guess = require_object(data, "initial_guess");
+
     InputData input_data{
         .t0_exp = t0_exp,
         .fixed_parameters = {
-            .Di = data.at("Di").get<double>(),
-            .R = data.at("R").get<double>(),
-            .L = data.at("L").get<double>(),
-            .F = data.at("F").get<double>() * 760.0 / data.at("pressure").get<double>(),
-            .X_feed = data.at("X_feed").get<double>(),
-            .t_ads_start = data.at("t_ads_start").get<double>(),
-            .t_ads_end = data.at("t_ads_end").get<double>(),
-            .k_ads_smooth = data.at("k_ads_smooth").get<double>(),
+            .Di = require_double(data, "Di"),
+            .R =  require_double(data, "R"),
+            .L =  require_double(data, "L"),
+            .F =  require_double(data, "F") * 760.0 /  require_double(data, "pressure"),
+            .X_feed =  require_double(data, "X_feed"),
+            .t_ads_start =  require_double(data, "t_ads_start"),
+            .t_ads_end =  require_double(data, "t_ads_end"),
+            .k_ads_smooth =  require_double(data, "k_ads_smooth"),
             .dt =  dt_exp
         },
         .initial_guess = {
-            .k_ads = data.at("initial_guess").at("k_ads").get<double>(),
-            .k_des = data.at("initial_guess").at("k_des").get<double>(),
-            .k_rxn = data.at("initial_guess").at("k_rxn").get<double>(),
-            .S_tot = data.at("initial_guess").at("S_tot").get<double>(),
-            .P_tot = data.at("initial_guess").at("Y_tot").get<double>()
+            .k_ads = require_double(initial_guess, "k_ads"),
+            .k_des = require_double(initial_guess, "k_des"),
+            .k_rxn = require_double(initial_guess, "k_rxn"),
+            .S_tot = require_double(initial_guess, "S_tot"),
+            .P_tot = require_double(initial_guess, "Y_tot")
         },
         .t_exp = t_exp,
         .X_exp = X_exp,
-        .N_reactors = data.at("N_reactors").get<long>()
+        .N_reactors = require_long(data, "N_reactors")
     };
 
     return input_data;
@@ -225,7 +271,14 @@ int main(int argc, char ** argv) {
     std::filesystem::path input_file_path(argv[1]);
     std::filesystem::path output_file_path = input_file_path.parent_path() / "fitted.json";
 
-    auto input_data = load_input_data(input_file_path);
+    InputData input_data;
+
+    try {
+        input_data = load_input_data(input_file_path);
+    } catch (std::runtime_error const & e) {
+        fmt::println(stderr, "Error while parsing parameters: {}", e.what());
+        return EXIT_FAILURE;
+    }
 
     auto * cost = new ResidualFunctor(input_data.t0_exp, input_data.fixed_parameters, input_data.X_exp, input_data.N_reactors);
 
@@ -270,11 +323,6 @@ int main(int argc, char ** argv) {
     // options.gradient_tolerance   = 1e-14;   // gradient norm tolerance
     // options.parameter_tolerance  = 0.0;   // parameter step tolerance
     // options.use_nonmonotonic_steps = true;
-
-    double cost_before;
-    problem.Evaluate(ceres::Problem::EvaluateOptions(),
-                     &cost_before, nullptr, nullptr, nullptr);
-    std::cout << "Initial cost: " << cost_before << std::endl;
 
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);

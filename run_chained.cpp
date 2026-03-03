@@ -30,27 +30,71 @@ InputData load_input_data(std::filesystem::path const & input_file_path) {
 
     json data = json::parse(ifs);
 
-    long N_t = data.at("N_t").get<long>();
-    long N_reactors = data.at("N_reactors").get<long>();
+    auto require_object = [](const nlohmann::json& j, const std::string& key)
+    -> const nlohmann::json& {
+
+        if (!j.contains(key))
+            throw std::runtime_error("Missing required object: '" + key + "'");
+
+        if (!j.at(key).is_object())
+            throw std::runtime_error("'" + key + "' must be an object");
+
+        return j.at(key);
+    };
+
+    auto require_double = [](const nlohmann::json& j, const std::string& key) -> double {
+        if (!j.contains(key)) {
+            throw std::runtime_error("Missing required parameter: '" + key + "'");
+        }
+        if (!j.at(key).is_number()) {
+            throw std::runtime_error("Parameter '" + key + "' must be a number");
+        }
+        return j.at(key).get<double>();
+    };
+
+    auto require_double_vector = [](const nlohmann::json& j, const std::string& key) -> std::vector<double> {
+        if (!j.contains(key)) {
+            throw std::runtime_error("Missing required parameter: '" + key + "'");
+        }
+        if (!j.at(key).is_array()) {
+            throw std::runtime_error("Parameter '" + key + "' must be an array of numbers");
+        }
+        return j.at(key).get<std::vector<double>>();
+    };
+
+    auto require_long = [](const nlohmann::json& j, const std::string& key) -> long {
+        if (!j.contains(key)) {
+            throw std::runtime_error("Missing required parameter: '" + key + "'");
+        }
+        if (!j.at(key).is_number_integer()) {
+            throw std::runtime_error("Parameter '" + key + "' must be an integer");
+        }
+        return j.at(key).get<long>();
+    };
+
+    long N_t = require_long(data, "N_t");
+    long N_reactors = require_long(data, "N_reactors");
+
+    auto fitted_parameters = require_object(data, "fitted_parameters");
 
     InputData input_data{
         .fixed_parameters = {
-            .Di = data.at("R").get<double>(),
-            .R = data.at("R").get<double>(),
-            .L = data.at("L").get<double>(),
-            .F = data.at("F").get<double>() * 760.0 / data.at("pressure").get<double>(),
-            .X_feed = data.at("X_feed").get<double>(),
-            .t_ads_start = data.at("t_ads_start").get<double>(),
-            .t_ads_end = data.at("t_ads_end").get<double>(),
-            .k_ads_smooth = data.at("k_ads_smooth").get<double>(),
-            .dt =  data.at("t_tot").get<double>() / static_cast<double>(N_t)
+            .Di = require_double(data, "Di"),
+            .R =  require_double(data, "R"),
+            .L =  require_double(data, "L"),
+            .F =  require_double(data, "F") * 760.0 /  require_double(data, "pressure"),
+            .X_feed =  require_double(data, "X_feed"),
+            .t_ads_start =  require_double(data, "t_ads_start"),
+            .t_ads_end =  require_double(data, "t_ads_end"),
+            .k_ads_smooth =  require_double(data, "k_ads_smooth"),
+            .dt =  require_double(data, "t_tot") / static_cast<double>(N_t)
         },
         .fitted_parameters = {
-            .k_ads = data.at("fitted_parameters").at("k_ads").get<double>(),
-            .k_des = data.at("fitted_parameters").at("k_des").get<double>(),
-            .k_rxn = data.at("fitted_parameters").at("k_rxn").get<double>(),
-            .S_tot = data.at("fitted_parameters").at("S_tot").get<double>(),
-            .P_tot = data.at("fitted_parameters").at("Y_tot").get<double>()
+            .k_ads = require_double(fitted_parameters, "k_ads"),
+            .k_des = require_double(fitted_parameters, "k_des"),
+            .k_rxn = require_double(fitted_parameters, "k_rxn"),
+            .S_tot = require_double(fitted_parameters, "S_tot"),
+            .P_tot = require_double(fitted_parameters, "Y_tot")
         },
         .N_t = N_t,
         .N_reactors = N_reactors
@@ -94,7 +138,14 @@ int main(int argc, char ** argv) {
     std::filesystem::path input_file_path(argv[1]);
     std::filesystem::path output_file_path = input_file_path.parent_path() / "run.json";
 
-    auto input_data = load_input_data(input_file_path);
+    InputData input_data;
+
+    try {
+        input_data = load_input_data(input_file_path);
+    } catch (std::runtime_error const & e) {
+        fmt::println(stderr, "Error while parsing parameters: {}", e.what());
+        return EXIT_FAILURE;
+    }
 
     // Initial guesses
     Model::FittedParameters fitted_parameters {
