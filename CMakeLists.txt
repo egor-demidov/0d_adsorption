@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.29)
+cmake_minimum_required(VERSION 3.28)
 project(0d_adsorption)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -12,12 +12,10 @@ find_package(nlohmann_json CONFIG REQUIRED)
 add_compile_definitions(_USE_MATH_DEFINES)
 
 add_executable(0d_adsorption_fit_chained fit_chained.cpp
-        model_chained.cpp
-        model.h)
+        model_chained.cpp)
 
 add_executable(0d_adsorption_chained run_chained.cpp
-        model_chained.cpp
-        model.h)
+        model_chained.cpp)
 
 #set(CMAKE_CXX_FLAGS "-O3 -flto=auto ${CMAKE_CXX_FLAGS}")
 
