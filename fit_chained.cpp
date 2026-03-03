@@ -165,7 +165,7 @@ InputData load_input_data(std::filesystem::path const & input_file_path) {
     InputData input_data{
         .t0_exp = t0_exp,
         .fixed_parameters = {
-            .Di = 40.0,
+            .Di = data.at("Di").get<double>(),
             .R = data.at("R").get<double>(),
             .L = data.at("L").get<double>(),
             .F = data.at("F").get<double>() * 760.0 / data.at("pressure").get<double>(),

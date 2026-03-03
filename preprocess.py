@@ -66,6 +66,7 @@ flow_rate /= 60  # flow rate, scc/s
 pressure = xl_ws['H2'].internal_value   # pressure, Torr
 concentration = xl_ws['I2'].internal_value * concentration_correction_factor # concentration, 1/cm^3 (including the correction factor)
 length = xl_ws['J2'].internal_value # reactor length, cm
+diffusion_coeff = xl_ws['K2'].internal_value # reactor length, cm^2/s
 
 class DriftCorrection:
 
@@ -122,6 +123,7 @@ class DriftCorrection:
             'L': length,
             'X_in': concentration,
             'pressure': pressure,
+            'Di': diffusion_coeff,
             't_ads_start': t_ads_start,
             't_ads_end': t_ads_end,
             'initial_guess': default_initial_guess,

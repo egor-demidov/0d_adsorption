@@ -11,14 +11,6 @@ find_package(nlohmann_json CONFIG REQUIRED)
 
 add_compile_definitions(_USE_MATH_DEFINES)
 
-add_executable(0d_adsorption main.cpp
-        model.cpp
-        model.h)
-
-add_executable(0d_adsorption_run_only run_only.cpp
-        model.cpp
-        model.h)
-
 add_executable(0d_adsorption_fit_chained fit_chained.cpp
         model_chained.cpp
         model.h)
@@ -28,25 +20,6 @@ add_executable(0d_adsorption_chained run_chained.cpp
         model.h)
 
 #set(CMAKE_CXX_FLAGS "-O3 -flto=auto ${CMAKE_CXX_FLAGS}")
-
-target_link_libraries(0d_adsorption PRIVATE
-        fmt::fmt
-        Ceres::ceres
-        SUNDIALS::cvode
-        SUNDIALS::nvecserial
-        SUNDIALS::sunmatrixdense
-        SUNDIALS::sunlinsoldense
-        nlohmann_json::nlohmann_json
-)
-
-target_link_libraries(0d_adsorption_run_only PRIVATE
-        fmt::fmt
-        SUNDIALS::cvode
-        SUNDIALS::nvecserial
-        SUNDIALS::sunmatrixdense
-        SUNDIALS::sunlinsoldense
-        nlohmann_json::nlohmann_json
-)
 
 target_link_libraries(0d_adsorption_fit_chained PRIVATE
         fmt::fmt

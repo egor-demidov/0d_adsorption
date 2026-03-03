@@ -39,7 +39,7 @@ def main():
     k_ads = fitted_parameters['solution']['k_ads']
     k_des = fitted_parameters['solution']['k_des']
     k_rxn = fitted_parameters['solution']['k_rxn']
-    S_tot = fitted_parameters['solution']['S_tot'] / 8  # TODO: remove the factor
+    S_tot = fitted_parameters['solution']['S_tot']
     Y_tot = fitted_parameters['solution']['Y_tot']
 
     y0 = (X_in, X_in, 0.0, 0.0)
