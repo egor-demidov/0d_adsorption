@@ -7,8 +7,13 @@ A Windows PowerShell session is needed to follow this tutorial.
     A Python environment needs to be set up to enable execution of pre/postprocessing scripts. A virtual environment
     is recommended:
 
-        python3 -m venv venv    # Create a virtual environment called 'venv' (only done ONCE)
+        python -m venv venv     # Create a virtual environment called 'venv' (only done ONCE)
         .\venv\Scripts\activate # Activate the created virtual environment
+
+    If the activation command throws an error saying that execution of scripts is not allowed, settings can be changed
+    with the following command (confirm with 'Y'):
+
+        Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser    # Allow local scripts (only done ONCE)
 
     Once a virtual environment has been created and activated, dependencies need to be installed into the environment.
     That can be done with:

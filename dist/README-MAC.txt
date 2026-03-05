@@ -7,8 +7,8 @@ A macOS terminal session is needed to follow this tutorial.
     A Python environment needs to be set up to enable execution of pre/postprocessing scripts. A virtual environment
     is recommended:
 
-        python3 -m venv venv    # Create a virtual environment called 'venv' (only done ONCE)
-        ./venv/bin/activate     # Activate the created virtual environment
+        python3 -m venv venv        # Create a virtual environment called 'venv' (only done ONCE)
+        source venv/bin/activate    # Activate the created virtual environment
 
     Once a virtual environment has been created and activated, dependencies need to be installed into the environment.
     That can be done with:
