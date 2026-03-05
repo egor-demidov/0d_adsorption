@@ -7,6 +7,10 @@
 
 #include <nlohmann/json.hpp>
 
+// New JSON library used to control format of numbers
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/stringbuffer.h>
+
 #include "model_chained.h"
 
 // #define ENABLE_SCALING
@@ -357,37 +361,144 @@ int main(int argc, char ** argv) {
     // cov = sigma_sq * (J^T*J)^-1
     // std. err j = sqrt(cov_jj)
 
-    ordered_json out_data;
-    out_data["solution"]["k_ads"] = S_EXP(theta[0]);
-    out_data["solution"]["k_des"] = S_EXP(theta[1]);
-    out_data["solution"]["k_rxn"] = S_EXP(theta[2]);
-    out_data["solution"]["S_tot"] = S_EXP(theta[3]);
-    out_data["solution"]["Y_tot"] = S_EXP(theta[4]);
-    out_data["standard_error"]["k_ads"] = S_EXP(sqrt(cov(0, 0)));
-    out_data["standard_error"]["k_des"] = S_EXP(sqrt(cov(1, 1)));
-    out_data["standard_error"]["k_rxn"] = S_EXP(sqrt(cov(2, 2)));
-    out_data["standard_error"]["S_tot"] = S_EXP(sqrt(cov(3, 3)));
-    out_data["standard_error"]["Y_tot"] = S_EXP(sqrt(cov(4, 4)));
-    out_data["fitted_data"]["X0"] = X0[0];
-    out_data["fitted_data"]["X"] = X[0];
-    out_data["fitted_data"]["Xgs"] = X[1];
-    out_data["fitted_data"]["Xs"] = X[2];
-    out_data["fitted_data"]["P"] = X[3];
-
-    // Outputting sensitivities...
-    out_data["sensitivities"]["dXdk_ads"] = X[4];
-    out_data["sensitivities"]["dXdk_des"] = X[5];
-    out_data["sensitivities"]["dXdk_rxn"] = X[6];
-    out_data["sensitivities"]["dXdS_tot"] = X[7];
-    out_data["sensitivities"]["dXdY_tot"] = X[8];
-
     std::vector<double> uptake_rate(input_data.t_exp.size());
 
     for (int i = 0; i < uptake_rate.size(); i ++) {
         uptake_rate[i] = theta[0] * X[9][i] * X[1][i] * (theta[3] - X[2][i]) - input_data.fixed_parameters.R / 2.0 * theta[1] * X[2][i];
     }
 
-    out_data["fitted_data"]["uptake_rate"] = uptake_rate;
+    rapidjson::StringBuffer sb;
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> w(sb);
+    w.SetIndent(' ', 4);
+
+    w.StartObject(); // root
+    w.Key("solution");
+    w.StartObject(); // solution
+
+    w.Key("k_ads");
+    auto k_ads = fmt::format("{:.06e}", S_EXP(theta[0]));
+    w.RawValue(k_ads.c_str(), static_cast<rapidjson::SizeType>(k_ads.size()), rapidjson::kNumberType);
+
+    w.Key("k_des");
+    auto k_des = fmt::format("{:.06e}", S_EXP(theta[1]));
+    w.RawValue(k_des.c_str(), static_cast<rapidjson::SizeType>(k_des.size()), rapidjson::kNumberType);
+
+    w.Key("k_rxn");
+    auto k_rxn = fmt::format("{:.06e}", S_EXP(theta[2]));
+    w.RawValue(k_rxn.c_str(), static_cast<rapidjson::SizeType>(k_rxn.size()), rapidjson::kNumberType);
+
+    w.Key("S_tot");
+    auto S_tot = fmt::format("{:.06e}", S_EXP(theta[3]));
+    w.RawValue(S_tot.c_str(), static_cast<rapidjson::SizeType>(S_tot.size()), rapidjson::kNumberType);
+
+    w.Key("Y_tot");
+    auto Y_tot = fmt::format("{:.06e}", S_EXP(theta[4]));
+    w.RawValue(Y_tot.c_str(), static_cast<rapidjson::SizeType>(Y_tot.size()), rapidjson::kNumberType);
+
+    w.EndObject(); // solution
+
+    w.Key("standard_error");
+    w.StartObject(); // standard_error
+
+    w.Key("k_ads");
+    k_ads = fmt::format("{:.06e}", S_EXP(sqrt(cov(0, 0))));
+    w.RawValue(k_ads.c_str(), static_cast<rapidjson::SizeType>(k_ads.size()), rapidjson::kNumberType);
+
+    w.Key("k_des");
+    k_des = fmt::format("{:.06e}", S_EXP(sqrt(cov(1, 1))));
+    w.RawValue(k_des.c_str(), static_cast<rapidjson::SizeType>(k_des.size()), rapidjson::kNumberType);
+
+    w.Key("k_rxn");
+    k_rxn = fmt::format("{:.06e}", S_EXP(sqrt(cov(2, 2))));
+    w.RawValue(k_rxn.c_str(), static_cast<rapidjson::SizeType>(k_rxn.size()), rapidjson::kNumberType);
+
+    w.Key("S_tot");
+    S_tot = fmt::format("{:.06e}", S_EXP(sqrt(cov(3, 3))));
+    w.RawValue(S_tot.c_str(), static_cast<rapidjson::SizeType>(S_tot.size()), rapidjson::kNumberType);
+
+    w.Key("Y_tot");
+    Y_tot = fmt::format("{:.06e}", S_EXP(sqrt(cov(4, 4))));
+    w.RawValue(Y_tot.c_str(), static_cast<rapidjson::SizeType>(Y_tot.size()), rapidjson::kNumberType);
+
+    w.EndObject(); // standard_error
+
+    w.Key("fitted_data");
+    w.StartObject(); // fitted_data
+
+    w.Key("X0");
+    w.StartArray(); // X0
+    for (auto v : X0[0])
+        w.Double(v);
+    w.EndArray(); // X0
+
+    w.Key("X");
+    w.StartArray(); // X
+    for (auto v : X[0])
+        w.Double(v);
+    w.EndArray(); // X
+
+    w.Key("Xgs");
+    w.StartArray(); // Xgs
+    for (auto v : X[1])
+        w.Double(v);
+    w.EndArray(); // Xgs
+
+    w.Key("Xs");
+    w.StartArray(); // Xs
+    for (auto v : X[2])
+        w.Double(v);
+    w.EndArray(); // Xs
+
+    w.Key("P");
+    w.StartArray(); // P
+    for (auto v : X[3])
+        w.Double(v);
+    w.EndArray(); // P
+
+    w.Key("uptake_rate");
+    w.StartArray(); // uptake_rate
+    for (auto v : uptake_rate)
+        w.Double(v);
+    w.EndArray(); // uptake_rate
+
+    w.EndObject(); // fitted_data
+
+    w.Key("sensitivities");
+    w.StartObject(); // sensitivities
+
+    w.Key("dXdk_ads");
+    w.StartArray(); // dXdk_ads
+    for (auto v :  X[4])
+        w.Double(v);
+    w.EndArray(); // dXdk_ads
+
+    w.Key("dXdk_des");
+    w.StartArray(); // dXdk_des
+    for (auto v :  X[5])
+        w.Double(v);
+    w.EndArray(); // dXdk_des
+
+    w.Key("dXdk_rxn");
+    w.StartArray(); // dXdk_rxn
+    for (auto v :  X[6])
+        w.Double(v);
+    w.EndArray(); // dXdk_rxn
+
+    w.Key("dXdS_tot");
+    w.StartArray(); // dXdS_tot
+    for (auto v :  X[7])
+        w.Double(v);
+    w.EndArray(); // dXdS_tot
+
+    w.Key("dXdY_tot");
+    w.StartArray(); // dXdY_tot
+    for (auto v :  X[8])
+        w.Double(v);
+    w.EndArray(); // dXdY_tot
+
+    w.EndObject(); // sensitivities
+
+    w.EndObject(); // root
 
     std::ofstream ofs(output_file_path);
 
@@ -396,7 +507,7 @@ int main(int argc, char ** argv) {
         exit(EXIT_FAILURE);
     }
 
-    ofs << out_data.dump(4);
+    ofs << sb.GetString();
 
     return 0;
 }

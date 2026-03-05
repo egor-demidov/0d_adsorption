@@ -8,6 +8,7 @@ find_package(SUNDIALS CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(Ceres CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
+find_package(RapidJSON CONFIG REQUIRED)
 
 add_compile_definitions(_USE_MATH_DEFINES)
 
@@ -27,6 +28,7 @@ target_link_libraries(0d_adsorption_fit_chained PRIVATE
         SUNDIALS::sunmatrixdense
         SUNDIALS::sunlinsoldense
         nlohmann_json::nlohmann_json
+        rapidjson
 )
 
 target_link_libraries(0d_adsorption_chained PRIVATE

@@ -86,7 +86,8 @@ xl_ws = xl_wb[sheet_name]
 
 reactor_diameter = xl_ws['L2'].internal_value # cm
 reactor_cross_section = np.pi * (reactor_diameter / 2.0) ** 2.0
-concentration_correction_factor = 1.0 / 8.0
+
+concentration_correction_factor = xl_ws['M2'].internal_value
 
 # Normalize data
 data.signal /= data.signal[0]

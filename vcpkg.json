@@ -2,7 +2,8 @@
   "dependencies": [
     "ceres",
     "fmt",
+    "nlohmann-json",
     "sundials",
-    "nlohmann-json"
+    "rapidjson"
   ]
 }
