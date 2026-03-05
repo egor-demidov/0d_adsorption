@@ -6,7 +6,8 @@ from scipy.signal import medfilt, butter, filtfilt
 from scipy.signal import savgol_filter, find_peaks
 import pandas as pd
 import openpyxl as xl
-import json
+import simplejson as json
+from decimal import Decimal
 import argparse
 from pathlib import Path
 
@@ -32,6 +33,50 @@ default_initial_guess = {
     'S_tot': 58264568110461.61,
     'Y_tot': 96507325673713.16
 }
+
+# Formats can be prescribed for select fields
+formats = {
+    "k_ads": "{:.6e}",
+    "k_des": "{:.6e}",
+    "k_rxn": "{:.6e}",
+    "S_tot": "{:.6e}",
+    "Y_tot": "{:.6e}",
+}
+
+def format_value(key, value):
+    if key in formats:
+        return Decimal(formats[key].format(value))
+    return value
+
+def to_jsonable(obj, key=None):
+    """Convert pandas/numpy objects to JSON-serializable Python objects,
+    and apply per-key numeric formatting as Decimal (stays a JSON number).
+    """
+    # --- pandas containers ---
+    if isinstance(obj, pd.Series):
+        # choose ONE:
+        return obj.to_dict()          # label->value mapping
+        # return obj.tolist()         # list of values (no index)
+    if isinstance(obj, pd.DataFrame):
+        return obj.to_dict(orient="records")  # list[dict] rows
+
+    # --- numpy scalars/arrays ---
+    if isinstance(obj, np.generic):
+        obj = obj.item()
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+
+    # --- dict/list recursion ---
+    if isinstance(obj, dict):
+        return {k: to_jsonable(v, key=k) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [to_jsonable(v, key=key) for v in obj]
+
+    # per-field numeric formatting (keeps JSON numbers)
+    if isinstance(obj, (int, float)) and key in formats:
+        return Decimal(formats[key].format(obj))
+
+    return obj
 
 with open(file_name, 'rb') as file:
     data = pd.read_excel(file, sheet_name=sheet_name, usecols='A,B')
@@ -149,8 +194,12 @@ class DriftCorrection:
             }
         }
 
+        # Apply the formats
+        formatted = to_jsonable(data_to_write)
+
         with open(out_name, 'w') as f:
-            json.dump(data_to_write, f, indent=4, sort_keys=False, ensure_ascii=False)
+            json.dump(formatted, f, use_decimal=True, indent=4)
+            # json.dump(data_to_write, f, indent=4, sort_keys=False, ensure_ascii=False)
 
 
 if __name__ == '__main__':
