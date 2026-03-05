@@ -1,0 +1,16 @@
+VERSION: 1.1 (current)
+GIT COMMIT: 8c6916753c92c423ffe4d189c610f4b09912f223
+
+CHANGELOG:
+    - Concentration correction factor is now supplied in the Excel file
+    - Initial guesses in preprocessed JSON file are written in scientific notation with precision
+    up to 6 decimal points
+    - Fitted parameters and standard errors are written in scientific notation with precision up
+    to 6 decimal points
+
+-------------------------------------------------------------------------------------------------
+VERSION: 1.0
+GIT COMMIT: 4abbca233dca0c932edb07be9961caf150dbc10f
+
+CHANGELOG:
+    - Initial release
