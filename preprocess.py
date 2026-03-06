@@ -10,6 +10,7 @@ import simplejson as json
 from decimal import Decimal
 import argparse
 from pathlib import Path
+import string
 
 parser = argparse.ArgumentParser(description="Preprocessing of uptake curves")
 
@@ -100,11 +101,9 @@ def lowpass_filtfilt(y, fs, fc, order=3):
     b, a = butter(order, fc, btype="low", fs=fs)
     return filtfilt(b, a, y)
 
-# Apply median filter to smooth the signal
 dt = np.median(np.diff(data.time))   # seconds/sample
 fs = 1.0 / dt                # samples/second (Hz)
 filtered_signal = lowpass_filtfilt(medfilt(data.signal, kernel_size=9), fs=fs, fc=fs/10.0, order=3)
-# data.signal = medfilt(data.signal, kernel_size=median_filter_kernel)
 
 # Determine indices of extrema
 max_idx, _ = find_peaks(filtered_signal, plateau_size=True)
@@ -120,6 +119,63 @@ t_ads_start = (0.3 * data.time[imax_left] + 0.7 * data.time[imin_global])
 t_ads_end = (0.3 * data.time[imin_left] + 0.7 * data.time[imax_global])
 print(f't_ads_start: {t_ads_start}')
 print(f't_ads_end: {t_ads_end}')
+
+### PLOT FOR PEAK DETECTION DESCRIPTION ###
+# plt.rcParams.update({
+#     "font.size": 12
+# })
+# fig, axs = plt.subplots(2, 2, figsize=(10, 4.3*1.8))
+# (ax1, ax2), (ax3, ax4) = axs
+# ax1.plot(data.time, data.signal)
+# ax2.plot(data.time, filtered_signal)
+# ax2.plot(data.time[imax_left], filtered_signal[imax_left], 'o', color='tab:orange', markersize=8)
+# ax2.annotate("Local maximum", (data.time[imax_left], filtered_signal[imax_left]), xytext=(8, 9), textcoords="offset points", ha='right')
+# ax2.plot(data.time[imin_global], filtered_signal[imin_global], 's', color='tab:orange', markersize=8)
+# ax2.annotate("Global minimum", (data.time[imin_global], filtered_signal[imin_global]), xytext=(5, 5), textcoords="offset points")
+# ax2.plot(data.time[imin_left], filtered_signal[imin_left], 'o', color='tab:green', markersize=8)
+# ax2.annotate("Local minimum", (data.time[imin_left], filtered_signal[imin_left]), xytext=(5, -5), textcoords="offset points", va='top')
+# ax2.plot(data.time[imax_global], filtered_signal[imax_global], 's', color='tab:green', markersize=8)
+# ax2.annotate("Global maximum", (data.time[imax_global], filtered_signal[imax_global]), xytext=(-5, -5), textcoords="offset points", ha='right', va='top')
+#
+# baseline_pts = [data.time[0], data.time[len(data.time)-121]]
+# baseline_pts_y = [data.signal[0], data.signal[len(data.time)-121]]
+# ax3.plot(data.time, data.signal)
+# ax3.plot([data.time[0], data.time[len(data.time) - 1]], [1.0, 1.0], '--k')
+# ax3.plot(baseline_pts, baseline_pts_y, '--r')
+# ax3.plot([baseline_pts[-1], data.time[len(data.time)-1]], [baseline_pts_y[-1], baseline_pts_y[-1] ], '--r')
+# ax3.plot(baseline_pts, baseline_pts_y, 'or')
+#
+# max_error = data.signal[len(data.time)-121] - 1
+# x1 = baseline_pts[1]
+# x0 = baseline_pts[0]
+# max_distance = x1 - x0
+# def correction_function(x):
+#     return (np.heaviside(x - x0, 0.5) - np.heaviside(x - x1, 0.5)) * (x - x0) * max_error / (x1 - x0) + np.heaviside(x - x1, 0.5) * max_error
+# data.signal -= correction_function(data.time)
+# ax4.plot(data.time, data.signal)
+# ax4.plot([data.time[0], data.time[len(data.time) - 1]], [1.0, 1.0], '--k')
+# ax4.plot(baseline_pts, np.ones(len(baseline_pts)) * data.signal[0], 'or')
+#
+# for ax in axs.flatten():
+#     ax.set_xlabel(R'Time, $\rm s$')
+#     ax.set_ylabel(R'Normalized concentration')
+#
+# for ax, label in zip(axs.flatten(), string.ascii_lowercase):
+#     ax.text(
+#         0.04, 0.96,                # position (x,y) in axes coords
+#         f'({label})',
+#         transform=ax.transAxes,    # use axes coordinates (0–1)
+#         fontsize=13,
+#         fontweight='bold',
+#         va='top',
+#         ha='left'
+#     )
+#
+# plt.tight_layout()
+# plt.savefig('figure_peak_detection.pdf')
+# plt.show()
+# exit()
+### END OF PLOT FOR PEAK DETECTION DESCRIPTION ###
 
 flow_rate = xl_ws['F2'].internal_value + xl_ws['G2'].internal_value # flow rate, sccm
 flow_rate /= 60  # flow rate, scc/s
