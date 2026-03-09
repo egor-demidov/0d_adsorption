@@ -8,7 +8,6 @@ import os
 
 from generate_data_with_noise import DURATIONS, PREFIX, SEEDS
 
-
 k_rxn_true = 2.5e-16
 Y_tot_true = 9.0e13
 
@@ -67,6 +66,15 @@ Y_tot_comp_err = [[] for _ in DURATIONS]
 
 for duration, j in zip(DURATIONS, range(len(DURATIONS))):
     parent_dir = PREFIX / f'run_{duration}'
+
+    with open(str(parent_dir) + '.json', 'r') as f:
+        true_data = json.load(f)
+
+        X_solution = true_data['solution']['X']
+        ts_solution = true_data['solution']['t']
+
+        true_integral = np.trapezoid(X_solution, ts_solution)
+
     for i in range(len(SEEDS)):
         run_dir = parent_dir / f'run_{duration}_noisy_{i+1}'
         input_file = run_dir / 'fitted.json'
@@ -74,6 +82,20 @@ for duration, j in zip(DURATIONS, range(len(DURATIONS))):
         if os.path.exists(input_file):
             with open(input_file, 'r') as f:
                 data = json.load(f)
+
+                # Compute the L2 norm of the solution to verify that it is not a zero curve
+                X_fitted = data['fitted_data']['X']
+                integral = np.trapezoid(X_fitted, ts_solution)
+
+                # integral_err = abs(integral - true_integral) / true_integral
+                # if integral_err > 0.001:
+                #     continue
+
+                err_Y_tot = abs(data['solution']['Y_tot'] - Y_tot_true) / Y_tot_true
+                err_k_rxn = abs(data['solution']['k_rxn'] - k_rxn_true) / k_rxn_true
+                if err_Y_tot > 0.9 or err_k_rxn > 0.9:
+                    print(f'Rejecting in {duration}')
+                    continue
 
                 k_rxn[j].append(data['solution']['k_rxn'])
                 Y_tot[j].append(data['solution']['Y_tot'])
@@ -107,7 +129,32 @@ ax2.plot(DURATIONS, Y_tot_rel_stdev, '-*', color='tab:purple', label=R'$Y_{\rm t
 
 ax2.set_ylabel('Relative standard deviation, %')
 ax2.set_xlabel(R'Exposure time, $\rm s$')
-ax2.legend()
+
+# Read sensitivities
+with open('combo_1/run_600.json', 'r') as f:
+    data = json.load(f)
+    ts_600 = data['solution']['t']
+    X_600 = data['solution']['X']
+    dXdk_rxn_600 = data['sensitivities']['dXdk_rxn']
+    dXdY_tot_600 = data['sensitivities']['dXdY_tot']
+
+# Plot sensitivities in the inset
+axins2 = inset_axes(ax2, width="60%", height="45%", loc="upper right")
+
+axins2.plot(ts_600, np.array(X_600)-X_600[0], '-k')
+# inset_twinx = axins2.twinx()
+# inset_twinx.plot(ts_600, np.array(dXdk_rxn_600) * k_rxn_true, color='tab:green')
+# inset_twinx.plot(ts_600, np.array(dXdY_tot_600) * Y_tot_true, color='tab:purple')
+
+axins2.plot(ts_600, np.array(dXdk_rxn_600) * k_rxn_true * 20.0, color='tab:green')
+axins2.plot(ts_600, np.array(dXdY_tot_600) * Y_tot_true * 20.0, color='tab:purple')
+
+# Remove ticks (optional)
+axins2.set_xticks([])
+axins2.set_yticks([])
+# inset_twinx.set_yticks([])
+
+# ax2.legend()
 
 ax3.plot(DURATIONS, k_rxn_rel_bias, '-^', color='tab:green', label=R'$k_{\rm rxn}$')
 ax3.plot(DURATIONS, Y_tot_rel_bias, '-*', color='tab:purple', label=R'$Y_{\rm tot}$')
@@ -121,7 +168,7 @@ ax4.plot(DURATIONS, Y_tot_rmse, '-*', color='tab:purple', label=R'$Y_{\rm tot}$'
 
 ax4.set_ylabel('R.M.S. error, %')
 ax4.set_xlabel(R'Exposure time, $\rm s$')
-ax4.legend()
+# ax4.legend()
 
 # Add a,b,c,d labels
 for ax, label in zip((ax1, ax2, ax3, ax4), string.ascii_lowercase):
@@ -135,9 +182,9 @@ for ax, label in zip((ax1, ax2, ax3, ax4), string.ascii_lowercase):
         ha='left'
     )
 
-ax2.set_ylim(bottom=None, top=57.0)
-ax3.set_ylim(bottom=None, top=43.0)
-ax4.set_ylim(bottom=None, top=69.0)
+ax2.set_ylim(bottom=None, top=45.0)
+ax3.set_ylim(bottom=None, top=25.0)
+ax4.set_ylim(bottom=None, top=50.0)
 
 plt.tight_layout()
 plt.savefig('figure_5.pdf')
