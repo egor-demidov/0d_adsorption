@@ -148,6 +148,11 @@ axins2.plot(ts_600, np.array(X_600)-X_600[0], '-k')
 
 axins2.plot(ts_600, np.array(dXdk_rxn_600) * k_rxn_true * 20.0, color='tab:green')
 axins2.plot(ts_600, np.array(dXdY_tot_600) * Y_tot_true * 20.0, color='tab:purple')
+idx_zero = np.where((np.array(dXdk_rxn_600)[:-1] < 0) & (np.array(dXdk_rxn_600)[1:] >= 0))[0][0]
+t_zero = ts_600[idx_zero]
+axins2.axvline(x=t_zero, ymin=0.05, ymax=0.95, color='black',
+               linestyle='--')
+axins2.text(t_zero + 50.0, -10.0e9, f'$t={t_zero}\\ \\rm s$')
 
 # Remove ticks (optional)
 axins2.set_xticks([])
