@@ -19,6 +19,8 @@ plt.rcParams.update({
 R = 0.78    # cm
 L_LEVO = 5.0     # cm
 L_NACL = 2.0     # cm
+F_LEVO = 2.367965 * 760 / 1.924             # cm^3/s
+F_NACL = 2.493333333333333 * 760 / 1.965    # cm^3/s
 
 with open('levoglucosan_parameter_convergence.json', 'r') as f:
     data_plot_b = json.load(f)
@@ -31,7 +33,7 @@ fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10, 4.3*1.8))
 # Prepare the data for plot (a)
 uptake_curves = []
 
-reactor_counts_plot_a = [1, 3, 10, 18]
+reactor_counts_plot_a = [1, 3, 10, 20]
 for count in reactor_counts_plot_a:
     with open(f'levoglucosan_runs/run_{count}.json', 'r') as f:
         data = json.load(f)
@@ -58,7 +60,7 @@ ax1.set_ylabel(R'X concentration, $\rm cm^{-3}$')
 # Prepare the data for plot (c)
 uptake_curves = []
 
-reactor_counts_plot_c = [1, 3, 10, 18]
+reactor_counts_plot_c = [1, 3, 10, 20]
 for count in reactor_counts_plot_c:
     with open(f'nacl_runs/run_{count}.json', 'r') as f:
         data = json.load(f)
@@ -116,6 +118,9 @@ for point in data_plot_b:
     for key in plot_b.keys():
         plot_b[key].append(point[key])
 
+plot_b_true_k_ads = plot_b["k_ads"][-1]
+plot_b_true_S_tot = plot_b["S_tot"][-1]
+
 # Convert lists into numpy arrays
 for key in plot_b.keys():
     plot_b[key] = np.array(plot_b[key])
@@ -125,27 +130,33 @@ for key in list(plot_b.keys())[1:]:
     plot_b[key] = (plot_b[key] - plot_b[key][-1]) / plot_b[key][-1] * 100
 
 # Define transformation functions
-def forward_levo(N):
-    return R * N / L_LEVO
+def invert(x):
+    # 1/x with special treatment of x == 0
+    x = np.array(x).astype(float)
+    near_zero = np.isclose(x, 0)
+    x[near_zero] = np.inf
+    x[~near_zero] = 2.0 * np.pi * R * L_LEVO * plot_b_true_k_ads * plot_b_true_S_tot / (x[~near_zero] * F_LEVO)
+    return x
 
-def inverse_levo(x):
-    return x * L_LEVO / R
-
-ax2.plot(plot_b["N_reactors"], plot_b["k_ads"], '-o', label=R'$k_{\rm ads}$')
-ax2.plot(plot_b["N_reactors"], plot_b["k_des"], '-v', label=R'$k_{\rm des}$')
-ax2.plot(plot_b["N_reactors"], plot_b["k_rxn"], '-^', label=R'$k_{\rm rxn}$')
-ax2.plot(plot_b["N_reactors"], plot_b["S_tot"], '-s', label=R'$S_{\rm tot}$')
-ax2.plot(plot_b["N_reactors"], plot_b["Y_tot"], '-*', label=R'$Y_{\rm tot}$')
+ax2.plot(plot_b["N_reactors"], plot_b["k_ads"], '-o', color='tab:blue', label=R'$k_{\rm ads}$')
+ax2.plot(plot_b["N_reactors"], plot_b["k_des"], '-v', color='tab:orange', label=R'$k_{\rm des}$')
+# ax2.plot(plot_b["N_reactors"], plot_b["k_rxn"], '-^', color='tab:green', label=R'$k_{\rm rxn}$')
+ax2.plot(plot_b["N_reactors"], plot_b["S_tot"], '-s', color='tab:red', label=R'$S_{\rm tot}$')
+# ax2.plot(plot_b["N_reactors"], plot_b["Y_tot"], '-*', color='tab:purple', label=R'$Y_{\rm tot}$')
 ax2.legend()
 ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
 
-ax2.set_ylim(bottom=None, top=200)
+ax2.set_ylim(bottom=None, top=130)
+# ax2.set_xlim(left=1, right=18)
+
+print(plot_b["S_tot"])
 
 ax2.set_xlabel('Number of reactors')
 ax2.set_ylabel('Relative parameter error, %')
 
-secax = ax2.secondary_xaxis('top', functions=(forward_levo, inverse_levo))
-secax.set_xlabel(R'$RN_{\rm reactors}/L$')
+secax = ax2.secondary_xaxis('top', functions=(invert, invert))
+secax.set_xlabel(R'${\rm Da}/N_{\rm reactors}$')
+secax.set_xticks((1.0, 0.3, 0.2, 0.1))
 
 # Prepare the data for plot (d)
 plot_d = {
@@ -162,6 +173,9 @@ for point in data_plot_d:
     for key in plot_d.keys():
         plot_d[key].append(point[key])
 
+plot_d_true_k_ads = plot_d["k_ads"][-1]
+plot_d_true_S_tot = plot_d["S_tot"][-1]
+
 # Convert lists into numpy arrays
 for key in plot_d.keys():
     plot_d[key] = np.array(plot_d[key])
@@ -171,11 +185,13 @@ for key in list(plot_d.keys())[1:]:
     plot_d[key] = (plot_d[key] - plot_d[key][-1]) / plot_d[key][-1] * 100
 
 # Define transformation functions
-def forward_nacl(N):
-    return R * N / L_NACL
-
-def inverse_nacl(x):
-    return x * L_NACL / R
+def invert_nacl(x):
+    # 1/x with special treatment of x == 0
+    x = np.array(x).astype(float)
+    near_zero = np.isclose(x, 0)
+    x[near_zero] = np.inf
+    x[~near_zero] = 2.0 * np.pi * R * L_NACL * plot_d_true_k_ads * plot_d_true_S_tot / (x[~near_zero] * F_NACL)
+    return x
 
 ax4.plot(plot_d["N_reactors"], plot_d["k_ads"], '-o', label=R'$k_{\rm ads}$')
 ax4.plot(plot_d["N_reactors"], plot_d["k_des"], '-v', label=R'$k_{\rm des}$')
@@ -190,8 +206,9 @@ ax4.set_ylim(bottom=None, top=80)
 ax4.set_xlabel('Number of reactors')
 ax4.set_ylabel('Relative parameter error, %')
 
-secax_nacl = ax4.secondary_xaxis('top', functions=(forward_nacl, inverse_nacl))
-secax_nacl.set_xlabel(R'$RN_{\rm reactors}/L$')
+secax_nacl = ax4.secondary_xaxis('top', functions=(invert_nacl, invert_nacl))
+secax_nacl.set_xlabel(R'${\rm Da}/N_{\rm reactors}$')
+secax_nacl.set_xticks((10.0, 1.0, 0.3, 0.2, 0.1))
 
 # Add a,b,c,d labels
 for ax, label in zip((ax1, ax2, ax3, ax4), string.ascii_lowercase):
@@ -207,5 +224,5 @@ for ax, label in zip((ax1, ax2, ax3, ax4), string.ascii_lowercase):
 
 
 plt.tight_layout()
-plt.savefig('figure_2.pdf')
+# plt.savefig('figure_2.pdf')
 plt.show()

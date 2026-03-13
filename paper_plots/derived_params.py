@@ -7,6 +7,7 @@ import uncertainties.umath as um
 import math
 import numpy as np
 from pathlib import Path
+from scipy.optimize import fsolve
 
 plt.rcParams.update({
     "font.size": 12,        # default text size
@@ -22,14 +23,16 @@ nacl = {
     "name": "Nacl",
     "input_path": Path('figure_3/nacl_drift_corrected.json'),
     "fitted_path": Path('figure_3/nacl_fitted.json'),
-    "gamma_qss_t": 539.0
+    "gamma_qss_t": 539.0,
+    "C_ml": 1.0 / (5.59e-8) ** 2.0      # surface concentration of units cells
 }
 
 levoglucosan = {
     "name": "levoglucosan",
     "input_path": Path('figure_3/levoglucosan_drift_corrected.json'),
     "fitted_path": Path('figure_3/levoglucosan_fitted.json'),
-    "gamma_qss_t": 280.0
+    "gamma_qss_t": 280.0,
+    "C_ml": 1.0/0.4e-14                   # surface concentration of molecules, 0.4 nm^2 is projected area of a molecule
 }
 
 compounds = [nacl, levoglucosan]
@@ -82,12 +85,17 @@ for compound, ax in zip(compounds, axes):
     K_ads = k_ads / R_2_k_des
     K_sa = K_ads * S_tot
     gamma_0 = k_ads * S_tot / omega
+    chi_S = S_tot / compound["C_ml"]
+    chi_Y = Y_tot / compound["C_ml"]
 
     print(f"R/2*k_des\t{R_2_k_des:.2uE}")
     print(f"K_ads\t\t{K_ads:.2uE}")
     print(f"K_sa\t\t{K_sa:.2uE}")
     print(f"gamma_0\t\t{gamma_0:.2uE}")
     print(f"gamma_qss\t{gamma_qss[qss_idx]:.2uE}")
+    print(f"C_ml\t\t{compound["C_ml"]:.2e}")
+    print(f"chi_S\t\t{chi_S:.2uE}")
+    print(f"chi_Y\t\t{chi_Y:.2uE}")
 
     # ax2 = ax.twinx()
     ax.plot(ts, gamma, '-k')
@@ -157,5 +165,5 @@ for ax, label in zip(axes, string.ascii_lowercase):
     )
 
 plt.tight_layout()
-plt.savefig('uptake_coefficients.pdf')
+# plt.savefig('uptake_coefficients.pdf')
 plt.show()
