@@ -35,14 +35,13 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@v3.27
+
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgJsonGlob: vcpkg.json
-
-      - name: Install Ninja (macOS)
-        if: matrix.platform == 'macos'
-        run: brew install ninja
 
       - name: Configure and build
         uses: lukka/run-cmake@v10
@@ -64,7 +63,7 @@ jobs:
           # Additional arguments can be appended to the cmake command.
           # This is useful to reduce the number of CMake's Presets since you can reuse
           # an existing preset with different variables.
-          configurePresetAdditionalArgs: "['-DCMAKE_POLICY_VERSION_MINIMUM=3.5']"
+#          configurePresetAdditionalArgs: "['-DCMAKE_POLICY_VERSION_MINIMUM=3.5']"
 
           # This is the name of the CMakePresets.json's configuration to build the project.
           buildPreset: ${{ matrix.build_preset }}
