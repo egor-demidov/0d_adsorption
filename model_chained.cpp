@@ -168,8 +168,8 @@ int Model::rhs(sunrealtype t, N_Vector y, N_Vector ydot) const {
 
     // ---- f(x,theta) ----
     const sunrealtype f1 = a*(Xprev - X) - k_d*(X - Xgs);
-    const sunrealtype f2 = k_d*(X - Xgs) - (2.0/R)*k_a_eff*Xgs*(S - Xs) + k_de*Xs;
-    const sunrealtype f3 = k_a_eff*Xgs*(S - Xs) - (R/2.0)*k_de*Xs - k_r*Xs*(PT - P);
+    const sunrealtype f2 = k_d*(X - Xgs) - (2.0/R)*k_a_eff*Xgs*(S - Xs) + (2.0/R)*k_de*Xs;
+    const sunrealtype f3 = k_a_eff*Xgs*(S - Xs) - k_de*Xs - k_r*Xs*(PT - P);
     const sunrealtype f4 = k_r*Xs*(PT - P);
 
     dY[xbase(n, 0)] = f1;
@@ -183,10 +183,10 @@ int Model::rhs(sunrealtype t, N_Vector y, N_Vector ydot) const {
 
     const sunrealtype A21 =  k_d;
     const sunrealtype A22 = -k_d - (2.0/R)*k_a_eff*(S - Xs);
-    const sunrealtype A23 =  (2.0/R)*k_a_eff*Xgs + k_de;
+    const sunrealtype A23 =  (2.0/R)*k_a_eff*Xgs + (2.0/R)*k_de;
 
     const sunrealtype A32 =  k_a_eff*(S - Xs);
-    const sunrealtype A33 = -k_a_eff*Xgs - (R/2.0)*k_de - k_r*(PT - P);
+    const sunrealtype A33 = -k_a_eff*Xgs - k_de - k_r*(PT - P);
     const sunrealtype A34 =  k_r*Xs;
 
     const sunrealtype A43 =  k_r*(PT - P);
@@ -222,8 +222,8 @@ int Model::rhs(sunrealtype t, N_Vector y, N_Vector ydot) const {
           b2 =  (1.0)*Xgs*(S - Xs)*ft;
           break;
         case 1: // k_des
-          b1 =  Xs;
-          b2 = -(R/2.0)*Xs;
+          b1 =  (2.0/R)*Xs;
+          b2 = -(1.0)*Xs;
           break;
         case 2: // k_rxn
           b2 = -Xs*(PT - P);
@@ -308,10 +308,10 @@ int Model::jac(sunrealtype t, N_Vector y, N_Vector fy, SUNMatrix J,
 
     const sunrealtype A21 =  k_d;
     const sunrealtype A22 = -k_d - (2.0/R)*k_a_eff*(S - Xs);
-    const sunrealtype A23 =  (2.0/R)*k_a_eff*Xgs + k_de;
+    const sunrealtype A23 =  (2.0/R)*k_a_eff*Xgs + (2.0/R)*k_de;
 
     const sunrealtype A32 =  k_a_eff*(S - Xs);
-    const sunrealtype A33 = -k_a_eff*Xgs - (R/2.0)*k_de - k_r*(PT - P);
+    const sunrealtype A33 = -k_a_eff*Xgs - k_de - k_r*(PT - P);
     const sunrealtype A34 =  k_r*Xs;
 
     const sunrealtype A43 =  k_r*(PT - P);
@@ -388,8 +388,8 @@ int Model::jac(sunrealtype t, N_Vector y, N_Vector fy, SUNMatrix J,
           db_Xs_2  = -Xgs*ft;
           break;
         case 1: // k_des
-          db_Xs_1  =  1.0;
-          db_Xs_2  = -(R/2.0);
+          db_Xs_1  =  (2.0/R);
+          db_Xs_2  = -(1.0);
           break;
         case 2: // k_rxn
           db_Xs_2  = -(PT - P);

@@ -12,7 +12,7 @@
     "k_ads_smooth": 6.0,
     "initial_guess": {
         "k_ads": 5.0e-11,
-        "k_des": 0.08,
+        "k_des": 0.03,
         "k_rxn": 4.0e-15,
         "S_tot": 6.0e12,
         "Y_tot": 2.0e12

@@ -364,7 +364,7 @@ int main(int argc, char ** argv) {
     std::vector<double> uptake_rate(input_data.t_exp.size());
 
     for (int i = 0; i < uptake_rate.size(); i ++) {
-        uptake_rate[i] = theta[0] * X[9][i] * X[1][i] * (theta[3] - X[2][i]) - input_data.fixed_parameters.R / 2.0 * theta[1] * X[2][i];
+        uptake_rate[i] = theta[0] * X[9][i] * X[1][i] * (theta[3] - X[2][i]) - theta[1] * X[2][i];
     }
 
     rapidjson::StringBuffer sb;

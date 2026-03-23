@@ -13,7 +13,7 @@
     "N_t": 1000,
     "fitted_parameters": {
         "k_ads": 4.5e-12,
-        "k_des": 0.05,
+        "k_des": 0.02,
         "k_rxn": 2.5e-16,
         "S_tot": 3.0e13,
         "Y_tot": 9.0e13
