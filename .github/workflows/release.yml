@@ -72,23 +72,31 @@ jobs:
           # This is useful to reduce the number of CMake's Presets you need in CMakePresets.json.
 #          buildPresetAdditionalArgs: "['--config Release']"
 
-      - name: Prepare package directory
+      - name: Prepare package directory (macos)
+        if: matrix.platform == 'macos'
         shell: bash
         run: |
           VERSION="${{ github.event.release.tag_name }}"
           PKG_DIR="${APP_NAME}_${{ matrix.platform }}"
-          BUILD_DIR="build-release"
-          INSTALL_DIR="dist/bin"
           
-          rsync -u "$BUILD_DIR/0d_adsorption_chained" "$INSTALL_DIR"
-          rsync -u "$BUILD_DIR/0d_adsorption_fit_chained" "$INSTALL_DIR"
-          rsync -u "preprocess.py" "$INSTALL_DIR"
-          rsync -u "plot_fitted_curve.py" "$INSTALL_DIR"
-          rsync -u "plot_run_only.py" "$INSTALL_DIR"
+          ./update_dist.sh
           
           mv dist "$PKG_DIR"
 
           echo "PKG_DIR=$PKG_DIR" >> "$GITHUB_ENV"
+
+      - name: Prepare package directory (windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $VERSION = "${{ github.event.release.tag_name }}"
+          $PKG_DIR = "${env:APP_NAME}_${{ matrix.platform }}"
+          
+          ./update_dist.ps1
+          
+          Move-Item dist $env:PKG_DIR
+
+          "PKG_DIR=$env:PKG_DIR" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Create zip archive
         if: matrix.archive_ext == 'zip'
