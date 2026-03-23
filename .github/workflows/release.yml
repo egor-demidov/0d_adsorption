@@ -40,6 +40,10 @@ jobs:
         with:
           vcpkgJsonGlob: vcpkg.json
 
+      - name: Install Ninja (macOS)
+        if: matrix.platform == 'macos'
+        run: brew install ninja
+
       - name: Configure
         run: cmake --preset ${{ matrix.configure_preset }}
 
