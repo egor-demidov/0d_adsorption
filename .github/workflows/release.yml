@@ -35,6 +35,10 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Setup MSVC
+        if: matrix.platform == 'windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
         with:
