@@ -42,5 +42,15 @@
         "CMAKE_CXX_FLAGS_INIT": "/O2"
       }
     }
+  ],
+  "buildPresets": [
+    {
+      "name": "release-gnu",
+      "configurePreset": "release-gnu"
+    },
+    {
+      "name": "release-win",
+      "configurePreset": "release-win"
+    }
   ]
 }
