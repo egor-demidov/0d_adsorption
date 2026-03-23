@@ -90,11 +90,11 @@ jobs:
         shell: pwsh
         run: |
           $VERSION = "${{ github.event.release.tag_name }}"
-          $PKG_DIR = "${env:APP_NAME}_${{ matrix.platform }}"
+          $env:PKG_DIR = "${env:APP_NAME}_${{ matrix.platform }}"
           
           ./update_dist.ps1
           
-          Move-Item dist $PKG_DIR
+          Move-Item dist $env:PKG_DIR
 
           "PKG_DIR=$env:PKG_DIR" | Out-File -FilePath $env:GITHUB_ENV -Append
 
