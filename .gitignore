@@ -30,3 +30,6 @@ dist/bin/**
 
 !update_dist.ps1
 !update_dist.sh
+
+!.github/
+!.github/**

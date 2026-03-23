@@ -1,0 +1,84 @@
+name: Build and upload release assets
+
+on:
+  release:
+    types: [created]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            configure_preset: release-win
+            build_preset: release-win
+            archive_ext: zip
+
+          - os: macos-latest
+            platform: macos
+            configure_preset: release-gnu
+            build_preset: release-gnu
+            archive_ext: tar.gz
+
+    env:
+      APP_NAME: cstr_adsorption
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgJsonGlob: vcpkg.json
+
+      - name: Configure
+        run: cmake --preset ${{ matrix.configure_preset }}
+
+      - name: Build
+        run: cmake --build --preset ${{ matrix.build_preset }}
+
+      - name: Prepare package directory
+        shell: bash
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          PKG_DIR="${APP_NAME}_${{ matrix.platform }}"
+          BUILD_DIR="build-release"
+          INSTALL_DIR="dist/bin"
+          
+          rsync -u "$BUILD_DIR/0d_adsorption_chained" "$INSTALL_DIR"
+          rsync -u "$BUILD_DIR/0d_adsorption_fit_chained" "$INSTALL_DIR"
+          rsync -u "preprocess.py" "$INSTALL_DIR"
+          rsync -u "plot_fitted_curve.py" "$INSTALL_DIR"
+          rsync -u "plot_run_only.py" "$INSTALL_DIR"
+          
+          mv dist "$PKG_DIR"
+
+          echo "PKG_DIR=$PKG_DIR" >> "$GITHUB_ENV"
+
+      - name: Create zip archive
+        if: matrix.archive_ext == 'zip'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "$env:PKG_DIR\*" -DestinationPath "$env:PKG_DIR.zip"
+          echo "ASSET_PATH=$env:PKG_DIR.zip" >> $env:GITHUB_ENV
+
+      - name: Create tar.gz archive
+        if: matrix.archive_ext == 'tar.gz'
+        shell: bash
+        run: |
+          tar -czf "${PKG_DIR}.tar.gz" "${PKG_DIR}"
+          echo "ASSET_PATH=${PKG_DIR}.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Upload asset to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ASSET_PATH }}

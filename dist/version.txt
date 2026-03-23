@@ -1,3 +1,11 @@
+VERSION: 1.2 (current
+GIT COMMIT: 5ae8468a05095d5217c7d8c4258d07d9b75970b7
+
+CHANGELOG:
+    - Transitioned to another definition of k_des (multiply old k_des by R/2 to get new value)
+    - Adding a workflow for automated builds
+
+-------------------------------------------------------------------------------------------------
 VERSION: 1.1 (current)
 GIT COMMIT: 8c6916753c92c423ffe4d189c610f4b09912f223
 
