@@ -94,7 +94,7 @@ jobs:
           
           ./update_dist.ps1
           
-          Move-Item dist $env:PKG_DIR
+          Move-Item dist $PKG_DIR
 
           "PKG_DIR=$env:PKG_DIR" | Out-File -FilePath $env:GITHUB_ENV -Append
 
