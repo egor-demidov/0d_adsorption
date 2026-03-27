@@ -140,6 +140,9 @@ def invert(x):
     x[~near_zero] = 2.0 * np.pi * R * L_LEVO * plot_b_true_k_ads * plot_b_true_S_tot / (x[~near_zero] * F_LEVO)
     return x
 
+# for i in range(len(plot_b["N_reactors"])):
+#     print(plot_b["N_reactors"][i], invert(plot_b["N_reactors"][i]), plot_b["k_ads"][i])
+
 ax2.plot(plot_b["N_reactors"], plot_b["k_ads"], '-o', color='tab:blue', label=R'$k_{\rm ads}$')
 ax2.plot(plot_b["N_reactors"], plot_b["k_des"], '-v', color='tab:orange', label=R'$k_{\rm des}$')
 # ax2.plot(plot_b["N_reactors"], plot_b["k_rxn"], '-^', color='tab:green', label=R'$k_{\rm rxn}$')
@@ -150,8 +153,6 @@ ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
 
 ax2.set_ylim(bottom=None, top=130)
 # ax2.set_xlim(left=1, right=18)
-
-print(plot_b["S_tot"])
 
 ax2.set_xlabel('Number of reactors')
 ax2.set_ylabel('Relative parameter error, %')
@@ -194,6 +195,9 @@ def invert_nacl(x):
     x[near_zero] = np.inf
     x[~near_zero] = 2.0 * np.pi * R * L_NACL * plot_d_true_k_ads * plot_d_true_S_tot / (x[~near_zero] * F_NACL)
     return x
+
+for i in range(len(plot_d["N_reactors"])):
+    print(plot_d["N_reactors"][i], invert_nacl(plot_d["N_reactors"][i]), plot_d["k_ads"][i])
 
 ax4.plot(plot_d["N_reactors"], plot_d["k_ads"], '-o', label=R'$k_{\rm ads}$')
 ax4.plot(plot_d["N_reactors"], plot_d["k_des"], '-v', label=R'$k_{\rm des}$')
