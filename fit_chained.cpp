@@ -265,41 +265,9 @@ std::array<std::vector<double>, 10> solve_model(
     return X;
 }
 
-int main(int argc, char ** argv) {
-
-    if (argc < 2) {
-        fmt::println(stderr, "Input file path must be provided as an argument");
-        return EXIT_FAILURE;
-    }
-
-    std::filesystem::path input_file_path(argv[1]);
-    std::filesystem::path output_file_path = input_file_path.parent_path() / "fitted.json";
-
-    InputData input_data;
-
-    try {
-        input_data = load_input_data(input_file_path);
-    } catch (std::runtime_error const & e) {
-        fmt::println(stderr, "Error while parsing parameters: {}", e.what());
-        return EXIT_FAILURE;
-    }
+void fit_model(InputData const & input_data, double theta[5]) {
 
     auto * cost = new ResidualFunctor(input_data.t0_exp, input_data.fixed_parameters, input_data.X_exp, input_data.N_reactors);
-
-    // Initial guesses
-    double theta[] = {
-        S_LOG(input_data.initial_guess.k_ads),     // k_ads
-        S_LOG(input_data.initial_guess.k_des),     // k_des
-        S_LOG(input_data.initial_guess.k_rxn),     // k_rxn
-        S_LOG(input_data.initial_guess.S_tot),     // S0
-        S_LOG(input_data.initial_guess.P_tot)      // Y0
-    };
-
-    Model::FittedParameters fitted_parameters_0 {
-        S_EXP(theta[0]), S_EXP(theta[1]), S_EXP(theta[2]), S_EXP(theta[3]), S_EXP(theta[4])
-    };
-
-    auto X0 = solve_model(input_data.fixed_parameters, fitted_parameters_0, input_data.t_exp.size(), input_data.N_reactors);
 
     ceres::Problem problem;
     problem.AddResidualBlock(cost, nullptr, theta);
@@ -331,6 +299,49 @@ int main(int argc, char ** argv) {
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
     std::cout << summary.FullReport() << "\n";
+
+    delete cost;
+
+}
+
+int main(int argc, char ** argv) {
+
+    if (argc < 2) {
+        fmt::println(stderr, "Input file path must be provided as an argument");
+        return EXIT_FAILURE;
+    }
+
+    std::filesystem::path input_file_path(argv[1]);
+    std::filesystem::path output_file_path = input_file_path.parent_path() / "fitted.json";
+
+    InputData input_data;
+
+    try {
+        input_data = load_input_data(input_file_path);
+    } catch (std::runtime_error const & e) {
+        fmt::println(stderr, "Error while parsing parameters: {}", e.what());
+        return EXIT_FAILURE;
+    }
+
+
+
+    // Initial guesses
+    double theta[] = {
+        S_LOG(input_data.initial_guess.k_ads),     // k_ads
+        S_LOG(input_data.initial_guess.k_des),     // k_des
+        S_LOG(input_data.initial_guess.k_rxn),     // k_rxn
+        S_LOG(input_data.initial_guess.S_tot),     // S0
+        S_LOG(input_data.initial_guess.P_tot)      // Y0
+    };
+
+    Model::FittedParameters fitted_parameters_0 {
+        S_EXP(theta[0]), S_EXP(theta[1]), S_EXP(theta[2]), S_EXP(theta[3]), S_EXP(theta[4])
+    };
+
+    auto X0 = solve_model(input_data.fixed_parameters, fitted_parameters_0, input_data.t_exp.size(), input_data.N_reactors);
+
+    // Perform the fitting
+    fit_model(input_data, theta);
 
     Model::FittedParameters fitted_parameters {
         S_EXP(theta[0]), S_EXP(theta[1]), S_EXP(theta[2]), S_EXP(theta[3]), S_EXP(theta[4])

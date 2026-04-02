@@ -8,7 +8,8 @@
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_CXX_FLAGS_INIT": "-Wall -Wextra -Wpedantic -Og"
+        "CMAKE_CXX_FLAGS_INIT": "-Wall -Wextra -Wpedantic -Og",
+        "EMSCRIPTEN": "Off"
       }
     },
     {
@@ -20,7 +21,8 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_CXX_FLAGS_INIT": "-flto=auto -O3",
         "CMAKE_OSX_ARCHITECTURES": "arm64",
-        "CMAKE_OSX_DEPLOYMENT_TARGET": "11.0"
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "11.0",
+        "EMSCRIPTEN": "Off"
       }
     },
     {
@@ -29,7 +31,8 @@
       "binaryDir": "${sourceDir}/build-debug",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "EMSCRIPTEN": "Off"
       }
     },
     {
@@ -39,7 +42,36 @@
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_CXX_FLAGS_INIT": "/O2"
+        "CMAKE_CXX_FLAGS_INIT": "/O2",
+        "EMSCRIPTEN": "Off"
+      }
+    },
+    {
+      "name": "debug-emscripten",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-debug-emscripten",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "$env{EMSDK_ROOT}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "EMSCRIPTEN": "On"
+      },
+      "environment": {
+        "PATH": "$penv{EMSDK_ROOT}:$penv{EMSDK_ROOT}/upstream/emscripten:$penv{EMSDK_ROOT}/upstream/bin:$penv{PATH}"
+      }
+    },
+    {
+      "name": "release-emscripten",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-release-emscripten",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "$env{EMSDK_ROOT}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+        "CMAKE_BUILD_TYPE": "Release",
+        "EMSCRIPTEN": "On"
+      },
+      "environment": {
+        "PATH": "$penv{EMSDK_ROOT}:$penv{EMSDK_ROOT}/upstream/emscripten:$penv{EMSDK_ROOT}/upstream/bin:$penv{PATH}"
       }
     }
   ],
