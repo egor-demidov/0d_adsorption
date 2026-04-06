@@ -23,6 +23,10 @@
 #define S_LOG(__X__) (__X__)
 #endif //ENABLE_SCALING
 
+#ifdef EMSCRIPTEN
+#include <emscripten/bind.h>
+#endif //EMSCRIPTEN
+
 using json = nlohmann::json;
 using ordered_json = nlohmann::ordered_json;
 
@@ -265,9 +269,15 @@ std::array<std::vector<double>, 10> solve_model(
     return X;
 }
 
-void fit_model(InputData const & input_data, double theta[5]) {
+std::vector<double> fit_model(Model::FixedParameters fixed_parameters,
+    const double t0_exp,
+    std::vector<double> X_exp,
+    const long N_reactors,
+    std::vector<double> theta_vec) {
 
-    auto * cost = new ResidualFunctor(input_data.t0_exp, input_data.fixed_parameters, input_data.X_exp, input_data.N_reactors);
+    auto * cost = new ResidualFunctor(t0_exp, fixed_parameters, X_exp, N_reactors);
+
+    double * theta = &theta_vec[0];
 
     ceres::Problem problem;
     problem.AddResidualBlock(cost, nullptr, theta);
@@ -300,10 +310,154 @@ void fit_model(InputData const & input_data, double theta[5]) {
     ceres::Solve(options, &problem, &summary);
     std::cout << summary.FullReport() << "\n";
 
-    delete cost;
-
+    return theta_vec;
 }
 
+using PairDD = std::pair<double, double>;
+
+struct FitResult {
+    std::vector<double> X_sol, X_sol_0, X_exp, t_exp;
+    std::pair<double, double> k_ads;
+    std::pair<double, double> k_des;
+    std::pair<double, double> k_rxn;
+    std::pair<double, double> S_tot;
+    std::pair<double, double> Y_tot;
+};
+
+FitResult run_fitting_web_app(Model::FixedParameters fixed_parameters,
+    const double t0_exp,
+    long t_exp_size,
+    std::vector<double> X_exp,
+    const long N_reactors,
+    std::vector<double> theta_vec) {
+
+    Model::FittedParameters fitted_parameters_0 {
+        S_EXP(theta_vec[0]), S_EXP(theta_vec[1]), S_EXP(theta_vec[2]), S_EXP(theta_vec[3]), S_EXP(theta_vec[4])
+    };
+
+    auto X0 = solve_model(fixed_parameters, fitted_parameters_0, t_exp_size, N_reactors);
+
+    // Perform the fitting
+    theta_vec = fit_model(fixed_parameters, t0_exp, X_exp, N_reactors, theta_vec);
+
+    Model::FittedParameters fitted_parameters {
+        S_EXP(theta_vec[0]), S_EXP(theta_vec[1]), S_EXP(theta_vec[2]), S_EXP(theta_vec[3]), S_EXP(theta_vec[4])
+    };
+
+    auto X = solve_model(fixed_parameters, fitted_parameters, t_exp_size, N_reactors);
+
+    // Calculate fit statistics
+    double SSR = 0.0;
+    for (long i = 0; i < X[0].size(); i ++) {
+        double residual = (X[0][i] - X_exp[i]);
+        SSR += residual * residual;
+    }
+
+    double sigma_sq = SSR / static_cast<double>(X[0].size() - 5);
+
+    Eigen::MatrixXd J(X[0].size(), 5);
+
+    for (long i = 0; i < X[0].size(); i ++) {
+        for (long j = 0; j < 5; j ++) {
+            J(i, j) = X[j+4][i];
+        }
+    }
+
+    Eigen::MatrixXd cov = sigma_sq * (J.transpose() * J).inverse();
+
+    std::vector<double> t_exp(X_exp.size());
+    for (long i = 0; i < t_exp.size(); i ++) {
+        t_exp[i] = t0_exp + static_cast<double>(i) * fixed_parameters.dt;
+    }
+
+    return {
+        .X_sol = X[0],
+        .X_sol_0 = X0[0],
+        .X_exp = X_exp,
+        .t_exp = t_exp,
+        .k_ads = std::make_pair(S_EXP(theta_vec[0]), S_EXP(sqrt(cov(0, 0)))),
+        .k_des = std::make_pair(S_EXP(theta_vec[1]), S_EXP(sqrt(cov(1, 1)))),
+        .k_rxn = std::make_pair(S_EXP(theta_vec[2]), S_EXP(sqrt(cov(2, 2)))),
+        .S_tot = std::make_pair(S_EXP(theta_vec[3]), S_EXP(sqrt(cov(3, 3)))),
+        .Y_tot = std::make_pair(S_EXP(theta_vec[4]), S_EXP(sqrt(cov(4, 4))))
+    };
+}
+
+#ifdef EMSCRIPTEN
+EMSCRIPTEN_BINDINGS(0d_adsorption_fit_chained) {
+    emscripten::register_vector<double>("VectorDouble");
+    emscripten::function("run_fitting_web_app", &run_fitting_web_app);
+
+    emscripten::value_object<Model::FixedParameters>("FixedParameters")
+        .field("Di", &Model::FixedParameters::Di)
+        .field("R", &Model::FixedParameters::R)
+        .field("L", &Model::FixedParameters::L)
+        .field("F", &Model::FixedParameters::F)
+        .field("X_feed", &Model::FixedParameters::X_feed)
+        .field("t_ads_start", &Model::FixedParameters::t_ads_start)
+        .field("t_ads_end", &Model::FixedParameters::t_ads_end)
+        .field("k_ads_smooth", &Model::FixedParameters::k_ads_smooth)
+        .field("dt", &Model::FixedParameters::dt);
+
+    emscripten::value_object<PairDD>("PairDD")
+        .field("first", &PairDD::first)
+        .field("second", &PairDD::second);
+
+    emscripten::value_object<FitResult>("FitResult")
+        .field("X_sol", &FitResult::X_sol)
+        .field("X_sol_0", &FitResult::X_sol_0)
+        .field("X_exp", &FitResult::X_exp)
+        .field("t_exp", &FitResult::t_exp)
+        .field("k_ads", &FitResult::k_ads)
+        .field("k_des", &FitResult::k_des)
+        .field("k_rxn", &FitResult::k_rxn)
+        .field("S_tot", &FitResult::S_tot)
+        .field("Y_tot", &FitResult::Y_tot);
+
+    // emscripten::value_object<Model::FittedParameters>("FittedParameters")
+    //     .field("k_ads", &Model::FittedParameters::k_ads)
+    //     .field("k_des", &Model::FittedParameters::k_des)
+    //     .field("k_rxn", &Model::FittedParameters::k_rxn)
+    //     .field("S_tot", &Model::FittedParameters::S_tot)
+    //     .field("P_tot", &Model::FittedParameters::P_tot);
+    //
+    // emscripten::value_object<InputData>("InputData")
+    //     .field("t0_exp", &InputData::t0_exp)
+    //     .field("fixed_parameters", &InputData::fixed_parameters)
+    //     .field("initial_guess", &InputData::initial_guess)
+    //     .field("t_exp", &InputData::t_exp)
+    //     .field("X_exp", &InputData::X_exp)
+    //     .field("N_reactors", &InputData::N_reactors);
+
+
+    // emscripten::class_<InputData>("InputData")
+    //     .constructor<std::string, double, double, double>()
+    //     .property("name_readonly", &Component::get_name)
+    //     .property("density_readonly", &Component::get_density)
+    //     .property("molecular_weight_readonly", &Component::get_molecular_weight)
+    //     .function("p_sat", &Component::get_p_sat)
+    //     .property("molar_volume_readonly", &Component::get_molar_volume);
+    //
+    // emscripten::value_object<SingleComponentCapillaryCondensationRun::Solution>("CondensationSolution")
+    //     .field("time", &SingleComponentCapillaryCondensationRun::Solution::time)
+    //     .field("condensate_volume", &SingleComponentCapillaryCondensationRun::Solution::condensate_volume)
+    //     .field("condensate_volume_fraction", &SingleComponentCapillaryCondensationRun::Solution::condensate_volume_fraction)
+    //     .field("uniform_to_capillary_ratio", &SingleComponentCapillaryCondensationRun::Solution::uniform_to_capillary_ratio)
+    //     .field("capillary_filling_angle", &SingleComponentCapillaryCondensationRun::Solution::capillary_filling_angle)
+    //     .field("uniform_coating_thickness", &SingleComponentCapillaryCondensationRun::Solution::uniform_coating_thickness)
+    //     .field("capillary_condensate_volume", &SingleComponentCapillaryCondensationRun::Solution::capillary_condensate_volume)
+    //     .field("uniform_condensate_volume", &SingleComponentCapillaryCondensationRun::Solution::uniform_condensate_volume);
+    //
+    // emscripten::value_object<CapillaryCondensationResult>("CapillaryCondensationResult")
+    //     .field("solution", &CapillaryCondensationResult::solution)
+    //     .field("n_steps", &CapillaryCondensationResult::n_steps)
+    //     .field("dt", &CapillaryCondensationResult::dt)
+    //     .field("chi", &CapillaryCondensationResult::chi)
+    //     .field("capillary_condensation_threshold", &CapillaryCondensationResult::capillary_condensation_threshold);
+}
+#endif //EMSCRIPTEN
+
+#ifndef EMSCRIPTEN
 int main(int argc, char ** argv) {
 
     if (argc < 2) {
@@ -323,10 +477,8 @@ int main(int argc, char ** argv) {
         return EXIT_FAILURE;
     }
 
-
-
     // Initial guesses
-    double theta[] = {
+    std::vector<double> theta = {
         S_LOG(input_data.initial_guess.k_ads),     // k_ads
         S_LOG(input_data.initial_guess.k_des),     // k_des
         S_LOG(input_data.initial_guess.k_rxn),     // k_rxn
@@ -341,7 +493,7 @@ int main(int argc, char ** argv) {
     auto X0 = solve_model(input_data.fixed_parameters, fitted_parameters_0, input_data.t_exp.size(), input_data.N_reactors);
 
     // Perform the fitting
-    fit_model(input_data, theta);
+    theta = fit_model(input_data.fixed_parameters, input_data.t0_exp, input_data.X_exp, input_data.N_reactors, theta);
 
     Model::FittedParameters fitted_parameters {
         S_EXP(theta[0]), S_EXP(theta[1]), S_EXP(theta[2]), S_EXP(theta[3]), S_EXP(theta[4])
@@ -522,3 +674,4 @@ int main(int argc, char ** argv) {
 
     return 0;
 }
+#endif //EMSCRIPTEN

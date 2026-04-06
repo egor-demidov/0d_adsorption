@@ -1,0 +1,7 @@
+{
+  "name": "0d_adsorption",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "test_web_module.js",
+  "dependencies": { }
+}
