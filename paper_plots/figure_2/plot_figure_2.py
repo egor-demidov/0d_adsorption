@@ -230,5 +230,5 @@ for ax, label in zip((ax1, ax2, ax3, ax4), string.ascii_lowercase):
 
 
 plt.tight_layout()
-plt.savefig('figure_2.pdf')
+# plt.savefig('figure_2.pdf')
 plt.show()

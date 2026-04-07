@@ -18,13 +18,18 @@ T = 300         # K
 M = 271.52e-3   # kg/mol
 Rg = 8.314      # J/mol/K
 omega = np.sqrt(Rg * T / 2.0 / np.pi / M) * 1.0e2   # cm/s
+Dp = 150e-7     # cm (representative particle diameter)
+X_M = 100               # pg/m^3 (gaseous concentration of mercury)
+X_factor = 2.0073E+03   # (1/cm^3) / (pg/m^3)
+X = X_M * X_factor      # 1/cm^3
 
 nacl = {
     "name": "Nacl",
     "input_path": Path('figure_3/nacl_drift_corrected.json'),
     "fitted_path": Path('figure_3/nacl_fitted.json'),
     "gamma_qss_t": 539.0,
-    "C_ml": 1.0 / (5.59e-8) ** 2.0      # surface concentration of units cells
+    "C_ml": 1.0 / (5.59e-8) ** 2.0,      # surface concentration of units cells
+    "rho": 2.17     # g/cm^3
 }
 
 levoglucosan = {
@@ -32,7 +37,8 @@ levoglucosan = {
     "input_path": Path('figure_3/levoglucosan_drift_corrected.json'),
     "fitted_path": Path('figure_3/levoglucosan_fitted.json'),
     "gamma_qss_t": 280.0,
-    "C_ml": 1.0/0.4e-14                   # surface concentration of molecules, 0.4 nm^2 is projected area of a molecule
+    "C_ml": 1.0/0.4e-14,                   # surface concentration of molecules, 0.4 nm^2 is projected area of a molecule
+    "rho": 1.69     # g/cm^3
 }
 
 compounds = [nacl, levoglucosan]
@@ -81,21 +87,33 @@ for compound, ax in zip(compounds, axes):
 
     print(f'{compound["name"]} DERIVED PARAMETERS')
 
-    R_2_k_des = k_des * R / 2.0
-    K_ads = k_ads / R_2_k_des
-    K_sa = K_ads * S_tot
+    K_ads = k_ads / k_des
+    K_ads_hat = K_ads * 1.0e-6 * 101_325 / (1.38e-23 * 300.0)
+    delta_G_ads = -um.log(K_ads_hat) * 8.314 * 300.0 * 1.0e-3
+    K_sa_rev = K_ads * S_tot
+    A_sp = 6.0 / (Dp * compound["rho"])
+    K_p_rev = K_sa_rev * A_sp
+    K_sa_tot_inf = K_sa_rev + Y_tot / X
+    K_p_tot_inf = K_sa_tot_inf * A_sp
     gamma_0 = k_ads * S_tot / omega
     chi_S = S_tot / compound["C_ml"]
     chi_Y = Y_tot / compound["C_ml"]
+    ratio_of_chis = chi_Y / chi_S
 
-    print(f"R/2*k_des\t{R_2_k_des:.2uE}")
     print(f"K_ads\t\t{K_ads:.2uE}")
-    print(f"K_sa\t\t{K_sa:.2uE}")
+    print(f"K_ads_hat\t{K_ads_hat:.2uE}")
+    print(f"delta_G_ads\t{delta_G_ads:.2uE}")
+    print(f"K_sa_rev\t{K_sa_rev:.2uE}")
+    print(f"A_sp\t\t{A_sp:.2e}")
+    print(f"K_p_rev\t{K_p_rev:.2uE}")
+    print(f"K_sa_tot_inf\t{K_sa_tot_inf:.2uE}")
+    print(f"K_p_tot_inf\t{K_p_tot_inf:.2uE}")
     print(f"gamma_0\t\t{gamma_0:.2uE}")
     print(f"gamma_qss\t{gamma_qss[qss_idx]:.2uE}")
     print(f"C_ml\t\t{compound["C_ml"]:.2e}")
     print(f"chi_S\t\t{chi_S:.2uE}")
     print(f"chi_Y\t\t{chi_Y:.2uE}")
+    print(f"ratio_of_chis\t{ratio_of_chis:.2uE}")
 
     # ax2 = ax.twinx()
     ax.plot(ts, gamma, '-k')
