@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 project(0d_adsorption)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(SUNDIALS CONFIG REQUIRED)

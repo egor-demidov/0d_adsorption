@@ -2,20 +2,20 @@
     "F": 2.367965,
     "R": 0.78,
     "L": 5,
-    "Di": 40.0,
+    "Di": 0.431,
     "X_in": 8268185491.677341,
     "X_feed": 8268185491.677341,
     "N_reactors": 10,
     "pressure": 1.924,
     "t_ads_start": 161.88,
-    "t_ads_end": 290.28,
-    "k_ads_smooth": 6.0,
+    "t_ads_end": 289.28,
+    "k_ads_smooth": 8.5,
     "initial_guess": {
-        "k_ads": 5.0e-11,
-        "k_des": 0.03,
-        "k_rxn": 4.0e-15,
-        "S_tot": 6.0e12,
-        "Y_tot": 2.0e12
+        "k_ads": 1.0e-12,
+        "k_des": 1.0e-2,
+        "k_rxn": 1.5e-17,
+        "S_tot": 6.0e13,
+        "Y_tot": 9.0e13
     },
     "experimental_data": {
         "t_exp": [

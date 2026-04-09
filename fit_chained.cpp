@@ -216,13 +216,15 @@ InputData load_input_data(std::filesystem::path const & input_file_path) {
 
     auto initial_guess = require_object(data, "initial_guess");
 
+    double pressure = require_double(data, "pressure");
+
     InputData input_data{
         .t0_exp = t0_exp,
         .fixed_parameters = {
-            .Di = require_double(data, "Di"),
+            .Di = require_double(data, "Di") * 760.0 / pressure,
             .R =  require_double(data, "R"),
             .L =  require_double(data, "L"),
-            .F =  require_double(data, "F") * 760.0 /  require_double(data, "pressure"),
+            .F =  require_double(data, "F") * 760.0 / pressure,
             .X_feed =  require_double(data, "X_feed"),
             .t_ads_start =  require_double(data, "t_ads_start"),
             .t_ads_end =  require_double(data, "t_ads_end"),

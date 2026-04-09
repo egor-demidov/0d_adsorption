@@ -76,13 +76,14 @@ InputData load_input_data(std::filesystem::path const & input_file_path) {
     long N_reactors = require_long(data, "N_reactors");
 
     auto fitted_parameters = require_object(data, "fitted_parameters");
+    double pressure = require_double(data, "pressure");
 
     InputData input_data{
         .fixed_parameters = {
-            .Di = require_double(data, "Di"),
+            .Di = require_double(data, "Di")  * 760.0 / pressure,
             .R =  require_double(data, "R"),
             .L =  require_double(data, "L"),
-            .F =  require_double(data, "F") * 760.0 /  require_double(data, "pressure"),
+            .F =  require_double(data, "F") * 760.0 / pressure,
             .X_feed =  require_double(data, "X_feed"),
             .t_ads_start =  require_double(data, "t_ads_start"),
             .t_ads_end =  require_double(data, "t_ads_end"),
