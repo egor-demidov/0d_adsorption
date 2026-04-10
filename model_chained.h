@@ -58,6 +58,10 @@ public:
         return n * NX * (1 + NP) + i;
     }
 
+    int ibase() const {
+        return N-1;
+    }
+
     void do_step();
 
     [[nodiscard]]

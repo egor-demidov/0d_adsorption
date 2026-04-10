@@ -26,7 +26,7 @@ Model::Model(FixedParameters const & fixed_parameters, FittedParameters const & 
   : N_reactors_(N_reactors)
   , NP(5)
   , NX(4)
-  , N(N_reactors * NX * (1 + NP))
+  , N(N_reactors * NX * (1 + NP) + 1)
   , B(NX * (1 + NP))
   , mu(B - 1)
   , ml(2*B - 1)
@@ -46,6 +46,7 @@ Model::Model(FixedParameters const & fixed_parameters, FittedParameters const & 
 {
   // Initial conditions for x:
   sunrealtype X0=fixed_parameters.X_feed, Xgs0=fixed_parameters.X_feed, Xs0=0, P0=0;
+  sunrealtype I0 = X0;
 
   // Create a sundials context
   if (SUNContext_Create(SUN_COMM_NULL, &sunctx_) != 0) {
@@ -65,6 +66,7 @@ Model::Model(FixedParameters const & fixed_parameters, FittedParameters const & 
     Y[xbase(n, 2)] = Xs0;
     Y[xbase(n, 3)] = P0;
   }
+  Y[ibase()] = I0;
 
   // Sensitivities s(0)=0 already set.
 
@@ -99,6 +101,7 @@ Model::Model(FixedParameters const & fixed_parameters, FittedParameters const & 
     a[xbase(n, 2)] = 1e-6;  // Xs (if small)
     a[xbase(n, 3)] = 1e-6;  // P  (if small)
   }
+  a[ibase()] = 1e2;
 
   flag = CVodeSVtolerances(cvode_mem_, reltol, atol_);
   if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeSStolerances failed\n"); exit(EXIT_FAILURE); }
@@ -248,6 +251,10 @@ int Model::rhs(sunrealtype t, N_Vector y, N_Vector ydot) const {
     }
 
   }
+
+  const sunrealtype X_last = Y[sbase(N_reactors_ - 1, 0)];
+  const sunrealtype I = Y[ibase()];
+  dY[ibase()] = (X_last - I) / fixed_parameters_.tau_detector;
 
   return 0;
 
@@ -431,6 +438,9 @@ int Model::jac(sunrealtype t, N_Vector y, N_Vector fy, SUNMatrix J,
       setJ(b+3, xP,   dA_P_3   + db_P_3);
     }
   }
+
+  setJ(ibase(), ibase(), -1.0 / fixed_parameters_.tau_detector);
+  setJ(ibase(), xbase(N_reactors_ - 1, 0), 1.0 / fixed_parameters_.tau_detector);
 
   return 0;
 }
