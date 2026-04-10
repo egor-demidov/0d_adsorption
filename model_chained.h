@@ -25,6 +25,7 @@ public:
         sunrealtype t_ads_start;
         sunrealtype t_ads_end;
         sunrealtype k_ads_smooth;
+        sunrealtype tau_detector;
         sunrealtype dt;
     };
 
