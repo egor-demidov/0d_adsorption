@@ -5,6 +5,8 @@
 #ifndef INC_0D_ADSORPTION_MODEL_H
 #define INC_0D_ADSORPTION_MODEL_H
 
+#include <array>
+
 #include <sundials/sundials_types.h>     // sunrealtype
 #include <sundials/sundials_context.h>   // SUNContext_Create, SUNContext_Free
 
@@ -66,6 +68,11 @@ public:
     }
 
     [[nodiscard]]
+    std::array<sunrealtype, 6> const & get_I() const {
+        return I_;
+    }
+
+    [[nodiscard]]
     sunrealtype get_t() const {
         return t_out;
     }
@@ -117,6 +124,8 @@ private:
     SUNLinearSolver LS_;
 
     sunrealtype t_out = 0.0;
+    std::array<sunrealtype, 6> I_;
+    const sunrealtype alpha_;
 };
 
 #endif //INC_0D_ADSORPTION_MODEL_H

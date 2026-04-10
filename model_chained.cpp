@@ -43,6 +43,8 @@ Model::Model(FixedParameters const & fixed_parameters, FittedParameters const & 
   , cvode_mem_(nullptr)
   , A_(nullptr)
   , LS_(nullptr)
+  , I_{fixed_parameters_.X_feed, 0.0, 0.0, 0.0, 0.0, 0.0}
+  , alpha_{exp(-fixed_parameters_.dt / fixed_parameters_.tau_detector)}
 {
   // Initial conditions for x:
   sunrealtype X0=fixed_parameters.X_feed, Xgs0=fixed_parameters.X_feed, Xs0=0, P0=0;
@@ -440,5 +442,10 @@ void Model::do_step() {
   sunrealtype t;
   int flag = CVode(cvode_mem_, t_out, y_, &t, CV_NORMAL);
   if (flag < 0) { std::fprintf(stderr,"CVode failed, flag=%d\n", flag); exit(EXIT_FAILURE); }
+
+  I_[0] = alpha_*I_[0] + (1.0 - alpha_)*get_Y()[xbase(N_reactors_ - 1, 0)];
+  for (int j = 0; j < NP; j ++) {
+    I_[j+1] = alpha_*I_[j+1] + (1.0 - alpha_)*get_Y()[sbase(N_reactors_-1, j)];
+  }
 }
 
