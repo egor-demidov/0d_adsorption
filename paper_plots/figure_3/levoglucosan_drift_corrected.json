@@ -7,10 +7,10 @@
     "X_feed": 8268185491.677341,
     "N_reactors": 10,
     "pressure": 1.924,
-    "t_ads_start": 161.88,
+    "t_ads_start": 156.88,
     "t_ads_end": 289.28,
     "k_ads_smooth": 2.5,
-    "tau_detector": 10.0,
+    "tau_detector": 4.0,
     "initial_guess": {
         "k_ads": 1.0e-12,
         "k_des": 1.0e-2,

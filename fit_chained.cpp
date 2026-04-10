@@ -92,11 +92,11 @@ struct ResidualFunctor final : public ceres::CostFunction {
 
             // fmt::println("{} {}", t0_exp_ + static_cast<double>(i) * 3.333333333333333, model.get_t());
 
-            X_model[i] = model.get_Y()[model.xbase(N_reactors_-1, 0)];
+            X_model[i] = model.get_I()[0];
 
             for (long j = 0; j < 5; j ++)
 #ifndef ENABLE_SCALING
-                dX[i][j] = model.get_Y()[model.sbase(N_reactors_-1, j)];
+                dX[i][j] = model.get_I()[j+1];
 #else //ENABLE_SCALING
                 dX[i][j] = exp(theta[j]) * model.get_Y()[model.sbase(N_reactors_-1, j)];
 #endif //ENABLE_SCALING
@@ -265,6 +265,9 @@ std::array<std::vector<double>, 10> solve_model(
             X[j][i] = model.get_Y()[model.xbase(N_reactors-1, j)];
         for (int j = 0; j < 5; j ++)
             X[j+4][i] = model.get_Y()[model.sbase(N_reactors-1, j)];
+
+        // TODO: replace with proper fix
+        X[0][i] = model.get_I()[0];
 
         X[9][i] = model.f_of_t(model.get_t());
     }
