@@ -27,7 +27,9 @@ public:
         sunrealtype t_ads_start;
         sunrealtype t_ads_end;
         sunrealtype k_ads_smooth;
-        sunrealtype tau_detector;
+        sunrealtype tau_0;
+        sunrealtype alpha;
+        sunrealtype rel_delta_c;
         sunrealtype dt;
     };
 
@@ -125,7 +127,6 @@ private:
 
     sunrealtype t_out = 0.0;
     std::array<sunrealtype, 6> I_;
-    const sunrealtype alpha_;
 };
 
 #endif //INC_0D_ADSORPTION_MODEL_H

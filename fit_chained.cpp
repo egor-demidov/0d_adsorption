@@ -229,7 +229,9 @@ InputData load_input_data(std::filesystem::path const & input_file_path) {
             .t_ads_start =  require_double(data, "t_ads_start"),
             .t_ads_end =  require_double(data, "t_ads_end"),
             .k_ads_smooth =  require_double(data, "k_ads_smooth"),
-            .tau_detector =  require_double(data, "tau_detector"),
+            .tau_0 =  require_double(data, "tau_0"),
+            .alpha =  require_double(data, "alpha"),
+            .rel_delta_c =  require_double(data, "rel_delta_c"),
             .dt =  dt_exp
         },
         .initial_guess = {
