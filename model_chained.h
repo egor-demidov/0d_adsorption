@@ -24,7 +24,8 @@ public:
         sunrealtype X_feed;
         sunrealtype t_ads_start;
         sunrealtype t_ads_end;
-        sunrealtype k_ads_smooth;
+        sunrealtype tau_sw_1;
+        sunrealtype tau_sw_2;
         sunrealtype dt;
     };
 
@@ -40,8 +41,15 @@ public:
     ~Model();
 
     [[nodiscard]]
+    sunrealtype g_of_t(sunrealtype t) const {
+        if (t < -derived_parameters_.s_sw)
+            return derived_parameters_.a_sw + derived_parameters_.a_sw * tanh(derived_parameters_.k1_sw * (t + derived_parameters_.s_sw));
+        return derived_parameters_.a_sw + derived_parameters_.b_sw * tanh(derived_parameters_.k2_sw * (t + derived_parameters_.s_sw));
+    }
+
+    [[nodiscard]]
     sunrealtype f_of_t(sunrealtype t) const {
-        return 0.5 * (tanh((t - fixed_parameters_.t_ads_start) / fixed_parameters_.k_ads_smooth) - tanh((t - fixed_parameters_.t_ads_end) / fixed_parameters_.k_ads_smooth));
+        return g_of_t(t - fixed_parameters_.t_ads_start) - g_of_t(t - fixed_parameters_.t_ads_end);
     }
 
     // n - index of reactor
@@ -76,6 +84,7 @@ private:
         sunrealtype V;
         sunrealtype k_diff;
         sunrealtype a;
+        sunrealtype k1_sw, k2_sw, a_sw, b_sw, s_sw;
     };
 
     // ODE right hand side
@@ -106,7 +115,7 @@ private:
 
     const FixedParameters fixed_parameters_;
     FittedParameters fitted_parameters_;
-    const DerivedParameters derived_parameters_;
+    DerivedParameters derived_parameters_;
 
     SUNContext sunctx_;
     N_Vector y_;

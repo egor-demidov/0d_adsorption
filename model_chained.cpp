@@ -44,6 +44,20 @@ Model::Model(FixedParameters const & fixed_parameters, FittedParameters const & 
   , A_(nullptr)
   , LS_(nullptr)
 {
+  // Compute parameters for the switching function
+  double k1_sw, k2_sw, a_sw, b_sw, s_sw;
+  k1_sw = 1.0 / fixed_parameters_.tau_sw_1;
+  k2_sw = 1.0 / fixed_parameters_.tau_sw_2;
+  a_sw = k2_sw / (k1_sw + k2_sw);
+  b_sw = k1_sw / (k1_sw + k2_sw);
+  s_sw = 1.0 / k2_sw * atanh((k1_sw - k2_sw) / (2.0 * k1_sw));
+
+  derived_parameters_.k1_sw = k1_sw;
+  derived_parameters_.k2_sw = k2_sw;
+  derived_parameters_.a_sw = a_sw;
+  derived_parameters_.b_sw = b_sw;
+  derived_parameters_.s_sw = s_sw;
+
   // Initial conditions for x:
   sunrealtype X0=fixed_parameters.X_feed, Xgs0=fixed_parameters.X_feed, Xs0=0, P0=0;
 
