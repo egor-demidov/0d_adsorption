@@ -81,8 +81,7 @@ struct ResidualFunctor final : public ceres::CostFunction {
         }
 
         if (alignment_steps <= 0) {
-            fmt::println(stderr, "Failed to align model and experimental time grid");
-            exit(EXIT_FAILURE);
+            throw std::runtime_error("Failed to align model and experimental time grid");
         }
 
         std::vector<double> X_model(M);
@@ -142,8 +141,8 @@ InputData load_input_data(std::filesystem::path const & input_file_path) {
     std::ifstream ifs(input_file_path);
 
     if (!ifs.good()) {
-        fmt::println(stderr, "Error reading experimental data from {}", input_file_path.string());
-        exit(EXIT_FAILURE);
+        std::string msg = fmt::format("Error reading experimental data from {}", input_file_path.string());
+        throw std::runtime_error(msg);
     }
 
     json data = json::parse(ifs);
@@ -464,8 +463,7 @@ EMSCRIPTEN_BINDINGS(0d_adsorption_fit_chained) {
 int main(int argc, char ** argv) {
 
     if (argc < 2) {
-        fmt::println(stderr, "Input file path must be provided as an argument");
-        return EXIT_FAILURE;
+        throw std::runtime_error("Input file path must be provided as an argument");
     }
 
     std::filesystem::path input_file_path(argv[1]);
@@ -476,8 +474,8 @@ int main(int argc, char ** argv) {
     try {
         input_data = load_input_data(input_file_path);
     } catch (std::runtime_error const & e) {
-        fmt::println(stderr, "Error while parsing parameters: {}", e.what());
-        return EXIT_FAILURE;
+        std::string msg = fmt::format("Error while parsing parameters: {}", e.what());
+        throw std::runtime_error(msg);
     }
 
     // Initial guesses
@@ -669,8 +667,8 @@ int main(int argc, char ** argv) {
     std::ofstream ofs(output_file_path);
 
     if (!ofs.good()) {
-        fmt::println(stderr, "Error writing output to {}", output_file_path.string());
-        exit(EXIT_FAILURE);
+        std::string msg = fmt::format("Error writing output to {}", output_file_path.string());
+        throw std::runtime_error(msg);
     }
 
     ofs << sb.GetString();

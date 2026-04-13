@@ -63,8 +63,7 @@ Model::Model(FixedParameters const & fixed_parameters, FittedParameters const & 
 
   // Create a sundials context
   if (SUNContext_Create(SUN_COMM_NULL, &sunctx_) != 0) {
-    std::fprintf(stderr, "SUNContext_Create failed\n");
-    exit(EXIT_FAILURE);
+    throw std::runtime_error("SUNContext_Create failed");
   }
 
   // Create N_Vector y0 and set the initial conditions
@@ -84,17 +83,23 @@ Model::Model(FixedParameters const & fixed_parameters, FittedParameters const & 
 
   // Create CVODE memory
   cvode_mem_ = CVodeCreate(CV_BDF, sunctx_);  // stiff -> BDF
-  if (!cvode_mem_) { std::fprintf(stderr,"CVodeCreate failed\n"); exit(EXIT_FAILURE); }
+  if (!cvode_mem_) {
+    throw std::runtime_error("CVodeCreate failed");
+  }
 
   int flag = CVodeInit(cvode_mem_, rhs_cvode, t_out, y_);
-  if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeInit failed\n"); exit(EXIT_FAILURE); }
+  if (flag != CV_SUCCESS) {
+    throw std::runtime_error("CVodeInit failed");
+  }
 
   CVodeSetMaxNumSteps(cvode_mem_, 200000); // or 1000000 if needed
   CVodeSetMaxStep(cvode_mem_, fixed_parameters_.dt);
   CVodeSetInitStep(cvode_mem_, fixed_parameters_.dt);
 
   flag = CVodeSetUserData(cvode_mem_, this);
-  if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeSetUserData failed\n"); exit(EXIT_FAILURE); }
+  if (flag != CV_SUCCESS) {
+    throw std::runtime_error("CVodeSetUserData failed");
+  }
 
   // tolerances
   sunrealtype reltol = 1e-8;
@@ -115,7 +120,9 @@ Model::Model(FixedParameters const & fixed_parameters, FittedParameters const & 
   }
 
   flag = CVodeSVtolerances(cvode_mem_, reltol, atol_);
-  if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeSStolerances failed\n"); exit(EXIT_FAILURE); }
+  if (flag != CV_SUCCESS) {
+    throw std::runtime_error("CVodeSStolerances failed");
+  }
 
   // Dense linear solver + dense Jacobian
   // A_ = SUNDenseMatrix(N, N, sunctx_);;
@@ -125,12 +132,16 @@ Model::Model(FixedParameters const & fixed_parameters, FittedParameters const & 
   LS_ = SUNLinSol_Band(y_, A_, sunctx_);
 
   flag = CVodeSetLinearSolver(cvode_mem_, LS_, A_);
-  if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeSetLinearSolver failed\n"); exit(EXIT_FAILURE); }
+  if (flag != CV_SUCCESS) {
+    throw std::runtime_error("CVodeSetLinearSolver failed");
+  }
 
 
   flag = CVodeSetJacFn(cvode_mem_, jac_cvode);
   // flag = CVodeSetJacFn(cvode_mem_, nullptr);
-  if (flag != CV_SUCCESS) { std::fprintf(stderr,"CVodeSetJacFn failed\n"); exit(EXIT_FAILURE); }
+  if (flag != CV_SUCCESS) {
+    throw std::runtime_error("CVodeSetJacFn failed");
+  }
 }
 
 Model::~Model() {
@@ -453,6 +464,8 @@ void Model::do_step() {
   t_out += fixed_parameters_.dt;
   sunrealtype t;
   int flag = CVode(cvode_mem_, t_out, y_, &t, CV_NORMAL);
-  if (flag < 0) { std::fprintf(stderr,"CVode failed, flag=%d\n", flag); exit(EXIT_FAILURE); }
+  if (flag < 0) {
+    throw std::runtime_error("CVode failed, flag=%d\n");
+  }
 }
 
