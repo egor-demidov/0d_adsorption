@@ -55,11 +55,6 @@ struct ResidualFunctor final : public ceres::CostFunction {
 
         set_num_residuals(M);
         mutable_parameter_block_sizes()->push_back(5);
-
-        weights_.resize(M);
-        for (long i = 0; i < M; i ++) {
-            weights_[i] = 1.0 + sqrt(pow(fixed_parameters_.X_feed - X_exp_[i], 2.0));
-        }
     }
 
     bool Evaluate(double const* const* parameters,
@@ -97,11 +92,11 @@ struct ResidualFunctor final : public ceres::CostFunction {
 
             // fmt::println("{} {}", t0_exp_ + static_cast<double>(i) * 3.333333333333333, model.get_t());
 
-            X_model[i] = model.get_I()[0];
+            X_model[i] = model.get_Y()[model.xbase(N_reactors_-1, 0)];
 
             for (long j = 0; j < 5; j ++)
 #ifndef ENABLE_SCALING
-                dX[i][j] = model.get_I()[j+1];
+                dX[i][j] = model.get_Y()[model.sbase(N_reactors_-1, j)];
 #else //ENABLE_SCALING
                 dX[i][j] = exp(theta[j]) * model.get_Y()[model.sbase(N_reactors_-1, j)];
 #endif //ENABLE_SCALING
@@ -111,7 +106,7 @@ struct ResidualFunctor final : public ceres::CostFunction {
 
         // Residuals: r_i = X_model(t_i) - X_obs_i
         for (int i = 0; i < M; ++i) {
-            residuals[i] = weights_[i] * (X_model[i] - X_exp_[i]);
+            residuals[i] = X_model[i] - X_exp_[i];
         }
 
         if (jacobians && jacobians[0]) {
@@ -119,7 +114,7 @@ struct ResidualFunctor final : public ceres::CostFunction {
             // J[i*5 + j] = dr_i/dtheta_j = dX_i/dtheta_j
             for (int i = 0; i < M; ++i) {
                 for (int j = 0; j < 5; ++j) {
-                    J[i*5 + j] = weights_[i] * dX[i][j];
+                    J[i*5 + j] = dX[i][j];
                 }
             }
         }
@@ -131,7 +126,6 @@ private:
     const double t0_exp_;
     const Model::FixedParameters fixed_parameters_;
     const std::vector<double> X_exp_;
-    std::vector<double> weights_;
     const long N_reactors_;
 };
 
@@ -235,9 +229,6 @@ InputData load_input_data(std::filesystem::path const & input_file_path) {
             .t_ads_start =  require_double(data, "t_ads_start"),
             .t_ads_end =  require_double(data, "t_ads_end"),
             .k_ads_smooth =  require_double(data, "k_ads_smooth"),
-            .tau_0 =  require_double(data, "tau_0"),
-            .alpha =  require_double(data, "alpha"),
-            .rel_delta_c =  require_double(data, "rel_delta_c"),
             .dt =  dt_exp
         },
         .initial_guess = {
@@ -273,9 +264,6 @@ std::array<std::vector<double>, 10> solve_model(
             X[j][i] = model.get_Y()[model.xbase(N_reactors-1, j)];
         for (int j = 0; j < 5; j ++)
             X[j+4][i] = model.get_Y()[model.sbase(N_reactors-1, j)];
-
-        // TODO: replace with proper fix
-        X[0][i] = model.get_I()[0];
 
         X[9][i] = model.f_of_t(model.get_t());
     }

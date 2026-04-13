@@ -43,7 +43,6 @@ Model::Model(FixedParameters const & fixed_parameters, FittedParameters const & 
   , cvode_mem_(nullptr)
   , A_(nullptr)
   , LS_(nullptr)
-  , I_{fixed_parameters_.X_feed, 0.0, 0.0, 0.0, 0.0, 0.0}
 {
   // Initial conditions for x:
   sunrealtype X0=fixed_parameters.X_feed, Xgs0=fixed_parameters.X_feed, Xs0=0, P0=0;
@@ -441,19 +440,5 @@ void Model::do_step() {
   sunrealtype t;
   int flag = CVode(cvode_mem_, t_out, y_, &t, CV_NORMAL);
   if (flag < 0) { std::fprintf(stderr,"CVode failed, flag=%d\n", flag); exit(EXIT_FAILURE); }
-
-  const sunrealtype dt = fixed_parameters_.dt;
-  const sunrealtype alpha = fixed_parameters_.alpha;
-  const sunrealtype tau_0 = fixed_parameters_.tau_0;
-  const sunrealtype X = get_Y()[xbase(N_reactors_ - 1, 0)];
-  const sunrealtype delta = fixed_parameters_.X_feed - X;
-  const sunrealtype delta_c = fixed_parameters_.rel_delta_c * fixed_parameters_.X_feed;
-  const sunrealtype tau = tau_0 + alpha * delta*delta / (delta_c*delta_c + delta*delta);
-  const sunrealtype tau_x = -alpha * 2.0*delta*delta_c*delta_c / ((delta_c*delta_c + delta*delta) * (delta_c*delta_c + delta*delta));
-
-  I_[0] += dt * (X - I_[0]) / tau;
-  for (int j = 0; j < NP; j ++) {
-    I_[j+1] += dt * (-1.0 / tau * I_[j+1] + (1.0/tau - (X-I_[0]) / (tau*tau) * tau_x) * get_Y()[sbase(N_reactors_ - 1, j)]);
-  }
 }
 
