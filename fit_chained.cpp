@@ -55,6 +55,11 @@ struct ResidualFunctor final : public ceres::CostFunction {
 
         set_num_residuals(M);
         mutable_parameter_block_sizes()->push_back(5);
+
+        weights_.resize(M);
+        for (long i = 0; i < M; i ++) {
+            weights_[i] = 1.0 + sqrt(pow(fixed_parameters_.X_feed - X_exp_[i], 2.0));
+        }
     }
 
     bool Evaluate(double const* const* parameters,
@@ -106,7 +111,7 @@ struct ResidualFunctor final : public ceres::CostFunction {
 
         // Residuals: r_i = X_model(t_i) - X_obs_i
         for (int i = 0; i < M; ++i) {
-            residuals[i] = X_model[i] - X_exp_[i];
+            residuals[i] = weights_[i] * (X_model[i] - X_exp_[i]);
         }
 
         if (jacobians && jacobians[0]) {
@@ -114,7 +119,7 @@ struct ResidualFunctor final : public ceres::CostFunction {
             // J[i*5 + j] = dr_i/dtheta_j = dX_i/dtheta_j
             for (int i = 0; i < M; ++i) {
                 for (int j = 0; j < 5; ++j) {
-                    J[i*5 + j] = dX[i][j];
+                    J[i*5 + j] = weights_[i] * dX[i][j];
                 }
             }
         }
@@ -126,6 +131,7 @@ private:
     const double t0_exp_;
     const Model::FixedParameters fixed_parameters_;
     const std::vector<double> X_exp_;
+    std::vector<double> weights_;
     const long N_reactors_;
 };
 
