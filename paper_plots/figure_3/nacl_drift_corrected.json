@@ -9,7 +9,8 @@
     "pressure": 1.965,
     "t_ads_start": 267.23999999999995,
     "t_ads_end": 543.78,
-    "k_ads_smooth": 3.5,
+    "tau_sw_1": 1.0,
+    "tau_sw_2": 2.5,
     "initial_guess": {
         "k_ads": 1.0e-12,
         "k_des": 1.0e-2,

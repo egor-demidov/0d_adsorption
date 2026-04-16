@@ -398,7 +398,8 @@ EMSCRIPTEN_BINDINGS(0d_adsorption_fit_chained) {
         .field("X_feed", &Model::FixedParameters::X_feed)
         .field("t_ads_start", &Model::FixedParameters::t_ads_start)
         .field("t_ads_end", &Model::FixedParameters::t_ads_end)
-        .field("k_ads_smooth", &Model::FixedParameters::k_ads_smooth)
+        .field("tau_sw_1", &Model::FixedParameters::tau_sw_1)
+        .field("tau_sw_2", &Model::FixedParameters::tau_sw_2)
         .field("dt", &Model::FixedParameters::dt);
 
     emscripten::value_object<PairDD>("PairDD")
