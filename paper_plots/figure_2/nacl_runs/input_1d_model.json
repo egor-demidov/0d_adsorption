@@ -7,12 +7,13 @@
     "Xgs0": 29424160260.695,
     "pressure": 1.965,
     "initial_guess": {
-        "k_ads": 5.584147e-12,
-        "k_des": 5.749308e-02,
-        "k_rxn": 2.998977e-16,
-        "S0": 2.728468e+13,
-        "Y0": 8.714206e+13,
-        "k_ads_smooth": 2.0,
+        "k_ads": 1.991724e-12,
+        "k_des": 1.766494e-02,
+        "k_rxn": 2.420383e-16,
+        "S0": 3.767942e+13,
+        "Y0": 8.606885e+13,
+        "tau_sw_1": 1.0,
+        "tau_sw_2": 2.5,
         "t_ads_start": 267.23999999999995,
         "t_ads_end": 546.78
     },
@@ -24,7 +25,8 @@
         "k_rxn": 1.0e-20,
         "t_ads_start": 200.0,
         "t_ads_end": 500.0,
-        "k_ads_smooth": 2.5
+        "tau_sw_1": 1.0,
+        "tau_sw_2": 2.5
     },
     "upper_bound": {
         "S0": 1.0e16,
@@ -34,7 +36,8 @@
         "k_rxn": 1.0e-14,
         "t_ads_start": 300.0,
         "t_ads_end": 600.0,
-        "k_ads_smooth": 5.0
+        "tau_sw_1": 1.0,
+        "tau_sw_2": 2.5
     },
     "normalized_experimental_data": {
         "X": [

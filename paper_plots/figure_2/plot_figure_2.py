@@ -151,7 +151,7 @@ ax2.plot(plot_b["N_reactors"], plot_b["S_tot"], '-s', color='tab:red', label=R'$
 # ax2.legend()
 ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
 
-ax2.set_ylim(bottom=None, top=130)
+ax2.set_ylim(bottom=None, top=135)
 # ax2.set_xlim(left=1, right=18)
 
 ax2.set_xlabel('Number of reactors')
@@ -159,7 +159,7 @@ ax2.set_ylabel('Relative parameter error, %')
 
 secax = ax2.secondary_xaxis('top', functions=(invert, invert))
 secax.set_xlabel(R'${\rm Da}/N_{\rm reactors}$')
-secax.set_xticks((1.0, 0.3, 0.15, 0.1))
+secax.set_xticks((1.0, 0.15, 0.1, 0.05))
 
 # Prepare the data for plot (d)
 plot_d = {
@@ -207,14 +207,14 @@ ax4.plot(plot_d["N_reactors"], plot_d["Y_tot"], '-*', label=R'$Y_{\rm tot}$')
 ax4.legend()
 ax4.xaxis.set_major_locator(MaxNLocator(integer=True))
 
-ax4.set_ylim(bottom=None, top=100)
+ax4.set_ylim(bottom=None, top=70)
 
 ax4.set_xlabel('Number of reactors')
 ax4.set_ylabel('Relative parameter error, %')
 
 secax_nacl = ax4.secondary_xaxis('top', functions=(invert_nacl, invert_nacl))
 secax_nacl.set_xlabel(R'${\rm Da}/N_{\rm reactors}$')
-secax_nacl.set_xticks((0.5, 0.15, 0.07, 0.05))
+secax_nacl.set_xticks((0.5, 0.10, 0.05, 0.03))
 
 # Add a,b,c,d labels
 for ax, label in zip((ax1, ax2, ax3, ax4), string.ascii_lowercase):
@@ -230,5 +230,5 @@ for ax, label in zip((ax1, ax2, ax3, ax4), string.ascii_lowercase):
 
 
 plt.tight_layout()
-# plt.savefig('figure_2.pdf')
+plt.savefig('figure_2.pdf')
 plt.show()

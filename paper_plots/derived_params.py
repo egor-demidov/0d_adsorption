@@ -30,7 +30,8 @@ nacl = {
     "fitted_path": Path('figure_3/nacl_fitted.json'),
     "gamma_qss_t": 539.0,
     "C_ml": 1.0 / (5.59e-8) ** 2.0,      # surface concentration of units cells
-    "rho": 2.17     # g/cm^3
+    "rho": 2.17,     # g/cm^3
+    "tau": 6.0e5
 }
 
 levoglucosan = {
@@ -39,7 +40,8 @@ levoglucosan = {
     "fitted_path": Path('figure_3/levoglucosan_fitted.json'),
     "gamma_qss_t": 280.0,
     "C_ml": 1.0/0.4e-14,                   # surface concentration of molecules, 0.4 nm^2 is projected area of a molecule
-    "rho": 1.69     # g/cm^3
+    "rho": 1.69,     # g/cm^3
+    "tau": 6.0e5
 }
 
 def find_local_minimum_before_gmax(arr):
@@ -101,7 +103,9 @@ for compound, ax in zip(compounds, axes):
     ts = np.array(input_data["experimental_data"]["t_exp"])
     t_ads_start = np.array(input_data["t_ads_start"])
     t_ads_end = np.array(input_data["t_ads_end"])
-    k_ads_smooth = np.array(input_data["k_ads_smooth"])
+    tau_1 = np.array(input_data["tau_sw_1"])
+    tau_2 = np.array(input_data["tau_sw_2"])
+    k_ads_smooth = 0.5 * (tau_1 + tau_2)
     Xgs = np.array(data["fitted_data"]["Xgs"])
     Xs = np.array(data["fitted_data"]["Xs"])
     P = np.array(data["fitted_data"]["P"])
@@ -125,28 +129,36 @@ for compound, ax in zip(compounds, axes):
     print(f'{compound["name"]} DERIVED PARAMETERS')
 
     K_ads = k_ads / k_des
-    K_ads_hat = K_ads * 1.0e-6 * 101_325 / (1.38e-23 * 300.0)
-    delta_G_ads = -um.log(K_ads_hat) * 8.314 * 300.0 * 1.0e-3
-    K_sa_rev = K_ads * S_tot
+    K_rxn = k_rxn / k_des
+    K_sa_r = K_ads * S_tot
+    K_sa_ur = K_sa_r / (1.0 + K_rxn * Y_tot)
+    kappa = Y_tot * K_ads * k_rxn * S_tot / (1.0 + K_rxn * Y_tot)
+    K_sa_tot = K_sa_ur + kappa * compound["tau"]
+
+
     A_sp = 6.0 / (Dp * compound["rho"])
-    K_p_rev = K_sa_rev * A_sp
-    K_sa_tot_inf = K_sa_rev + Y_tot / X
-    K_p_tot_inf = K_sa_tot_inf * A_sp
+    K_p_r = K_sa_r * A_sp
+    K_p_ur = K_sa_ur * A_sp
+    K_p_tot = K_sa_tot * A_sp
+
     gamma_0 = k_ads * S_tot / omega
+    gamma_qss_ur = gamma_0 * K_rxn * Y_tot / (1.0 + K_rxn * Y_tot)
+
     chi_S = S_tot / compound["C_ml"]
     chi_Y = Y_tot / compound["C_ml"]
     ratio_of_chis = chi_Y / chi_S
 
     print(f"K_ads\t\t{K_ads:.2uE}")
-    print(f"K_ads_hat\t{K_ads_hat:.2uE}")
-    print(f"delta_G_ads\t{delta_G_ads:.2uE}")
-    print(f"K_sa_rev\t{K_sa_rev:.2uE}")
+    print(f"K_sa_r\t{K_sa_r:.2uE}")
+    print(f"K_sa_ur\t{K_sa_ur:.2uE}")
+    print(f"kappa_r\t{kappa:.2uE}")
+    print(f"K_sa_tot\t{K_sa_tot:.2uE}")
     print(f"A_sp\t\t{A_sp:.2e}")
-    print(f"K_p_rev\t{K_p_rev:.2uE}")
-    print(f"K_sa_tot_inf\t{K_sa_tot_inf:.2uE}")
-    print(f"K_p_tot_inf\t{K_p_tot_inf:.2uE}")
+    print(f"K_p_r\t{K_p_r:.2uE}")
+    print(f"K_p_ur\t{K_p_ur:.2uE}")
+    print(f"K_p_tot\t{K_p_tot:.2uE}")
     print(f"gamma_0\t\t{gamma_0:.2uE}")
-    print(f"gamma_qss\t{gamma_qss[idx_ss - 1]:.2uE}")
+    print(f"gamma_qss_ur\t{gamma_qss_ur:.2uE}")
     print(f"C_ml\t\t{compound["C_ml"]:.2e}")
     print(f"chi_S\t\t{chi_S:.2uE}")
     print(f"chi_Y\t\t{chi_Y:.2uE}")

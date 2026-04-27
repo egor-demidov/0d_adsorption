@@ -87,7 +87,8 @@ InputData load_input_data(std::filesystem::path const & input_file_path) {
             .X_feed =  require_double(data, "X_feed"),
             .t_ads_start =  require_double(data, "t_ads_start"),
             .t_ads_end =  require_double(data, "t_ads_end"),
-            .k_ads_smooth =  require_double(data, "k_ads_smooth"),
+            .tau_sw_1 =  require_double(data, "tau_sw_1"),
+            .tau_sw_2 =  require_double(data, "tau_sw_2"),
             .dt =  require_double(data, "t_tot") / static_cast<double>(N_t)
         },
         .fitted_parameters = {
