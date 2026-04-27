@@ -75,21 +75,19 @@ for compound, ax in zip(compounds, axes):
     L = input_data["L"]
     F_stp = input_data["F"]
     pressure = input_data["pressure"]
-    Dg = input_data["Di"]
+    Dg_stp = input_data["Di"]
+    Dg = Dg_stp * 760.0 / pressure
     A = np.pi * R**2.0
     F = F_stp * 760.0 / pressure
     u = F / A
 
     dX_conc = np.diff(X_conc)
     idx_ss = find_local_minimum_before_gmax(dX_conc)
-    # plt.plot(range(len(dX_conc)), dX_conc)
-    # plt.plot([idx_ss], [dX_conc[idx_ss]], 'or')
-    # plt.show()
-    # exit()
 
     I_B = np.min(X_conc)
     I_A = X_conc[0]
     I_C = X_conc[idx_ss - 1]
+
 
     def gamma_classic(I_0, I_t):
         k_obs = u / L * np.log(I_0 / I_t)
@@ -173,14 +171,14 @@ for compound, ax in zip(compounds, axes):
     ax.plot(ts, gamma, '-k')
     ax.plot(ts, gamma_qss_nominal, '--', color='tab:blue')
     ax.axhline(y=gamma_0.n, linestyle=':', color='tab:red', linewidth=2)
-    ax.text(50.0, gamma_0.n - 0.001, f"$\\gamma_0={gamma_0.n:.03f}$", color="tab:red", va="top", ha="left")
+    ax.text(10.0, gamma_0.n - 0.0005, f"$\\gamma_0={gamma_0.n:.03f}$", color="tab:red", va="top", ha="left")
     ax.axhline(y=gamma_0_classic, linestyle=':', color='tab:purple', linewidth=2)
-    ax.text(50.0, gamma_0_classic - 0.001, f"$\\gamma_0={gamma_0_classic:.03f}$", color="tab:purple", va="top", ha="left")
-    ax.axhline(y=gamma_qss_classic, linestyle='--', color='tab:cyan', linewidth=2)
+    ax.text(10.0, gamma_0_classic - 0.0005, f"$\\gamma_{R'{\rm 0,c}'}={gamma_0_classic:.03f}$", color="tab:purple", va="top", ha="left")
+    # ax.axhline(y=gamma_qss_classic, linestyle='--', color='tab:cyan', linewidth=2)
     ax.plot(ts[idx_ss - 1], gamma_qss_nominal[idx_ss - 1], 'o', color='tab:blue')
     exponent = math.floor(math.log10(abs(gamma_qss_nominal[idx_ss - 1])))
     mantissa = gamma_qss_nominal[idx_ss - 1] / 10**exponent
-    ax.text(ts[idx_ss - 1]+10, gamma_qss_nominal[idx_ss - 1] + 0.001, "$\\gamma_{\\rm qss}=" + f"{mantissa:.01f}\\times 10^" + "{" + f"{exponent}" + "}$", color="tab:blue", va="bottom", ha="left")
+    ax.text(ts[idx_ss - 1]+10, gamma_qss_nominal[idx_ss - 1] + 0.0005, "$\\gamma_{\\rm fin}=" + f"{mantissa:.01f}\\times 10^" + "{" + f"{exponent}" + "}$", color="tab:blue", va="bottom", ha="left")
     # ax2.plot(range(len(dXs_dt)), dXs_dt)
     # ax.set_title(compound["name"])
 
@@ -240,5 +238,5 @@ for ax, label in zip(axes, string.ascii_lowercase):
     )
 
 plt.tight_layout()
-# plt.savefig('uptake_coefficients.pdf')
+plt.savefig('uptake_coefficients.pdf')
 plt.show()
