@@ -319,11 +319,22 @@ using PairDD = std::pair<double, double>;
 
 struct FitResult {
     std::vector<double> X_sol, X_sol_0, X_exp, t_exp;
+    // Other states (solution only)
+    std::vector<double> Xgs, Xs, P;
+    // Sensitivities
+    std::vector<double> dX_d_k_ads, dX_d_k_des, dX_d_k_rxn, dX_d_S_tot, dX_d_Y_tot;
+    // Uptake rate
+    std::vector<double> r_uptake;
+
+    // Fitted parameters
     std::pair<double, double> k_ads;
     std::pair<double, double> k_des;
     std::pair<double, double> k_rxn;
     std::pair<double, double> S_tot;
     std::pair<double, double> Y_tot;
+
+    // Sum of squared residuals
+    double SSR;
 };
 
 FitResult run_fitting_web_app(Model::FixedParameters fixed_parameters,
@@ -372,16 +383,84 @@ FitResult run_fitting_web_app(Model::FixedParameters fixed_parameters,
         t_exp[i] = t0_exp + static_cast<double>(i) * fixed_parameters.dt;
     }
 
+    std::vector<double> uptake_rate(t_exp.size());
+
+    for (int i = 0; i < uptake_rate.size(); i ++) {
+        uptake_rate[i] = S_EXP(theta_vec[0]) * X[9][i] * X[1][i] * (S_EXP(theta_vec[3]) - X[2][i]) - S_EXP(theta_vec[1]) * X[2][i];
+    }
+
     return {
         .X_sol = X[0],
         .X_sol_0 = X0[0],
         .X_exp = X_exp,
         .t_exp = t_exp,
+        // Other states
+        .Xgs = X[1],
+        .Xs = X[2],
+        .P = X[3],
+        // Sensitivities
+        .dX_d_k_ads = X[4],
+        .dX_d_k_des = X[5],
+        .dX_d_k_rxn = X[6],
+        .dX_d_S_tot = X[7],
+        .dX_d_Y_tot = X[8],
+        // Uptake rate
+        .r_uptake = uptake_rate,
+        // Fitted parameters
         .k_ads = std::make_pair(S_EXP(theta_vec[0]), S_EXP(sqrt(cov(0, 0)))),
         .k_des = std::make_pair(S_EXP(theta_vec[1]), S_EXP(sqrt(cov(1, 1)))),
         .k_rxn = std::make_pair(S_EXP(theta_vec[2]), S_EXP(sqrt(cov(2, 2)))),
         .S_tot = std::make_pair(S_EXP(theta_vec[3]), S_EXP(sqrt(cov(3, 3)))),
-        .Y_tot = std::make_pair(S_EXP(theta_vec[4]), S_EXP(sqrt(cov(4, 4))))
+        .Y_tot = std::make_pair(S_EXP(theta_vec[4]), S_EXP(sqrt(cov(4, 4)))),
+        // SSR
+        .SSR = SSR
+    };
+}
+
+struct RunOnlyResult {
+    std::vector<double> X_sol, t_sol;
+    // Other states (solution only)
+    std::vector<double> Xgs, Xs, P;
+    // Sensitivities
+    std::vector<double> dX_d_k_ads, dX_d_k_des, dX_d_k_rxn, dX_d_S_tot, dX_d_Y_tot;
+    // Uptake rate
+    std::vector<double> r_uptake;
+};
+
+RunOnlyResult run_only_web_app(Model::FixedParameters fixed_parameters,
+    const double t_tot,
+    const long N_reactors,
+    std::vector<double> theta_vec) {
+
+    const long N_t = static_cast<long>(t_tot / fixed_parameters.dt);
+    std::vector<double> ts(N_t);
+    for (long i = 0; i < N_t; i ++)
+        ts[i] = static_cast<double>(i+1) * fixed_parameters.dt;
+
+    Model::FittedParameters fitted_parameters {
+        S_EXP(theta_vec[0]), S_EXP(theta_vec[1]), S_EXP(theta_vec[2]), S_EXP(theta_vec[3]), S_EXP(theta_vec[4])
+    };
+
+    auto X = solve_model(fixed_parameters, fitted_parameters, N_t, N_reactors);
+
+    std::vector<double> uptake_rate(ts.size());
+
+    for (int i = 0; i < uptake_rate.size(); i ++) {
+        uptake_rate[i] = S_EXP(theta_vec[0]) * X[9][i] * X[1][i] * (S_EXP(theta_vec[3]) - X[2][i]) - S_EXP(theta_vec[1]) * X[2][i];
+    }
+
+    return {
+        .X_sol = X[0],
+        .t_sol = ts,
+        .Xgs = X[1],
+        .Xs = X[2],
+        .P = X[3],
+        .dX_d_k_ads = X[4],
+        .dX_d_k_des = X[5],
+        .dX_d_k_rxn = X[6],
+        .dX_d_S_tot = X[7],
+        .dX_d_Y_tot = X[8],
+        .r_uptake = uptake_rate
     };
 }
 
@@ -389,6 +468,7 @@ FitResult run_fitting_web_app(Model::FixedParameters fixed_parameters,
 EMSCRIPTEN_BINDINGS(0d_adsorption_fit_chained) {
     emscripten::register_vector<double>("VectorDouble");
     emscripten::function("run_fitting_web_app", &run_fitting_web_app);
+    emscripten::function("run_only_web_app", &run_only_web_app);
 
     emscripten::value_object<Model::FixedParameters>("FixedParameters")
         .field("Di", &Model::FixedParameters::Di)
@@ -411,11 +491,34 @@ EMSCRIPTEN_BINDINGS(0d_adsorption_fit_chained) {
         .field("X_sol_0", &FitResult::X_sol_0)
         .field("X_exp", &FitResult::X_exp)
         .field("t_exp", &FitResult::t_exp)
+        .field("Xgs", &FitResult::Xgs)
+        .field("Xs", &FitResult::Xs)
+        .field("P", &FitResult::P)
+        .field("dX_d_k_ads", &FitResult::dX_d_k_ads)
+        .field("dX_d_k_des", &FitResult::dX_d_k_des)
+        .field("dX_d_k_rxn", &FitResult::dX_d_k_rxn)
+        .field("dX_d_S_tot", &FitResult::dX_d_S_tot)
+        .field("dX_d_Y_tot", &FitResult::dX_d_Y_tot)
+        .field("r_uptake", &FitResult::r_uptake)
         .field("k_ads", &FitResult::k_ads)
         .field("k_des", &FitResult::k_des)
         .field("k_rxn", &FitResult::k_rxn)
         .field("S_tot", &FitResult::S_tot)
-        .field("Y_tot", &FitResult::Y_tot);
+        .field("Y_tot", &FitResult::Y_tot)
+        .field("SSR", &FitResult::SSR);
+
+    emscripten::value_object<RunOnlyResult>("RunOnlyResult")
+        .field("X_sol", &RunOnlyResult::X_sol)
+        .field("t_sol", &RunOnlyResult::t_sol)
+        .field("Xgs", &RunOnlyResult::Xgs)
+        .field("Xs", &RunOnlyResult::Xs)
+        .field("P", &RunOnlyResult::P)
+        .field("dX_d_k_ads", &RunOnlyResult::dX_d_k_ads)
+        .field("dX_d_k_des", &RunOnlyResult::dX_d_k_des)
+        .field("dX_d_k_rxn", &RunOnlyResult::dX_d_k_rxn)
+        .field("dX_d_S_tot", &RunOnlyResult::dX_d_S_tot)
+        .field("dX_d_Y_tot", &RunOnlyResult::dX_d_Y_tot)
+        .field("r_uptake", &RunOnlyResult::r_uptake);
 
     // emscripten::value_object<Model::FittedParameters>("FittedParameters")
     //     .field("k_ads", &Model::FittedParameters::k_ads)
