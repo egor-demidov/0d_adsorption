@@ -83,8 +83,9 @@ for compound, ax in zip(compounds, axes):
 
     dX_conc = np.diff(X_conc)
     idx_ss = find_local_minimum_before_gmax(dX_conc)
+    idx_min = np.argmin(X_conc)
 
-    I_B = np.min(X_conc)
+    I_B = X_conc[idx_min]
     I_A = X_conc[0]
     I_C = X_conc[idx_ss - 1]
 
@@ -96,7 +97,7 @@ for compound, ax in zip(compounds, axes):
         return k_r_eff * R / 2.0 / omega
 
     gamma_0_classic = gamma_classic(I_A, I_B)
-    gamma_qss_classic = gamma_classic(I_A, I_C)
+    gamma_fin_classic = gamma_classic(I_A, I_C)
 
     ts = np.array(input_data["experimental_data"]["t_exp"])
     t_ads_start = np.array(input_data["t_ads_start"])
@@ -164,8 +165,11 @@ for compound, ax in zip(compounds, axes):
 
     print(f'{compound["name"]} CLASSIC PARAMETERS')
 
-    print(f"gamma_0_classic\t{gamma_0_classic:.2e}")
-    print(f"gamma_qss_classic\t{gamma_qss_classic:.2e}")
+    print(f"gamma_0_app_cls\t{gamma_0_classic:.2e}")
+    print(f"gamma_0_app\t{gamma[idx_min]:.2e}")
+    print(f"gamma_fin_cls\t{gamma_fin_classic:.2e}")
+    print(f"gamma_fin\t{gamma[idx_ss - 1]:.2e}")
+    print(f"gamma_0\t{gamma_0:.2e}")
 
     # ax2 = ax.twinx()
     ax.plot(ts, gamma, '-k')
