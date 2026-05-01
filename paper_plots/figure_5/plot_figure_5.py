@@ -159,6 +159,9 @@ axins2.set_xticks([])
 axins2.set_yticks([])
 # inset_twinx.set_yticks([])
 
+axins2.set_ylabel('Sensitivity', fontsize=11, labelpad=3)
+axins2.set_xlabel('Time', fontsize=11, labelpad=3)
+
 # ax2.legend()
 
 ax3.plot(DURATIONS, k_rxn_rel_bias, '-^', color='tab:green', label=R'$k_{\rm rxn}$')
