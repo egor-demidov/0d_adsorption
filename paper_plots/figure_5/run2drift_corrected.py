@@ -17,11 +17,11 @@ def run2drit_corrected(duration, path_in, path_out):
         "tau_sw_1": 1.0,
         "tau_sw_2": 2.5,
         "initial_guess": {
-            "k_ads": 2.5e-12,
-            "k_des": 0.02,
-            "k_rxn": 1.0e-17,
+            "k_ads": 1.0e-12,
+            "k_des": 0.01,
+            "k_rxn": 1.5e-17,
             "S_tot": 6.0e13,
-            "Y_tot": 1.0e14
+            "Y_tot": 9.0e13
         }
     }
 

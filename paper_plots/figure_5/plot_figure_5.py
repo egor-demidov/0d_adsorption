@@ -81,7 +81,12 @@ for duration, j in zip(DURATIONS, range(len(DURATIONS))):
 
         if os.path.exists(input_file):
             with open(input_file, 'r') as f:
-                data = json.load(f)
+
+                try:
+                    data = json.load(f)
+                except json.decoder.JSONDecodeError:
+                    print('Error reading JSON')
+                    continue
 
                 # Compute the L2 norm of the solution to verify that it is not a zero curve
                 X_fitted = data['fitted_data']['X']

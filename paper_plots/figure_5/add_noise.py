@@ -30,7 +30,7 @@ def add_noise(cum_noise_magnitude, rand_noise_magnitude, hf_rand_noise_magnitude
 
     cum_noise = np.cumsum((np.random.rand(M) - 0.5) / 0.5 * cum_noise_magnitude)
 
-    rand_noise = (np.random.normal(scale=1, size=M) - 0.5) / 0.5 * rand_noise_magnitude
+    rand_noise = (np.random.normal(scale=1, size=M)) * rand_noise_magnitude
 
     noise = cum_noise + rand_noise
 
@@ -41,7 +41,7 @@ def add_noise(cum_noise_magnitude, rand_noise_magnitude, hf_rand_noise_magnitude
     noise_interp = np.interp(x_n, x_m, noise)
 
     # Generate high frequency noise
-    rand_noise_hf = (np.random.normal(scale=1, size=L) - 0.5) / 0.5 * hf_rand_noise_magnitude
+    rand_noise_hf = (np.random.normal(scale=1, size=L)) * hf_rand_noise_magnitude
 
     # Interpolate the high frequency noise filter
     x_l = np.linspace(0.0, 1.0, L)
