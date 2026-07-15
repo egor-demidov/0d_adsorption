@@ -4,7 +4,9 @@ import numpy as np
 import json
 from matplotlib.colors import LinearSegmentedColormap
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
+from matplotlib.patches import Patch
 import matplotlib.patheffects as pe
+from matplotlib.cm import ScalarMappable
 
 bkr = LinearSegmentedColormap.from_list(
     "bkr",
@@ -89,7 +91,7 @@ for i, param in enumerate(parameter_map):
 fig, axs = plt.subplot_mosaic([
     ['A', 'A', 'B', 'B'],
     ['C', 'C', 'D', 'D'],
-    ['.', 'E', 'E', '.'],
+    ['F', 'E', 'E', '.'],
 ], figsize=(10, 4.3*2.8))
 
 def plot_datasets(parameter_idx: int, ax: plt.Axes, inset_xs, inset_ys, inset_width, inset_height, inset_loc, hide_labels, reverse_order, label_at_min, show_inset, custom_label_pos):
@@ -146,9 +148,9 @@ def plot_datasets(parameter_idx: int, ax: plt.Axes, inset_xs, inset_ys, inset_wi
             else:
                 percent = f'{percent:.0f} %'
 
-        ax.fill_between(dataset['t'], dataset['X'], dataset['X'][0], alpha=1.0, color=color)
+        ax.plot(dataset['t'], dataset['X'], alpha=1.0, color=color)
         if show_inset:
-            axins.fill_between(dataset['t'], dataset['X'], dataset['X'][0], alpha=1.0, color=color)
+            axins.plot(dataset['t'], dataset['X'], alpha=1.0, color=color)
 
 
         label_ax = axins if show_inset else ax
@@ -157,54 +159,56 @@ def plot_datasets(parameter_idx: int, ax: plt.Axes, inset_xs, inset_ys, inset_wi
             if n not in hide_labels:
                 next_X = parameter_map[parameter_idx]['datasets'][order[n+1]]['X'][custom_label_pos] if n < len(parameter_map[parameter_idx]['datasets']) - 1 else dataset['X'][0]
 
-                label_ax.text(
-                    dataset['t'][custom_label_pos],
-                    (dataset['X'][custom_label_pos]+next_X) / 2.0,
-                    percent,
-                    color="white",
-                    fontsize=10,
-                    ha="center",
-                    va="center",
-                    path_effects=[
-                        pe.withStroke(linewidth=3, foreground="black")
-                    ],
-                    )
+                # label_ax.text(
+                #     dataset['t'][custom_label_pos],
+                #     (dataset['X'][custom_label_pos]+next_X) / 2.0,
+                #     percent,
+                #     color="white",
+                #     fontsize=10,
+                #     ha="center",
+                #     va="center",
+                #     path_effects=[
+                #         pe.withStroke(linewidth=3, foreground="black")
+                #     ],
+                #     )
         else:
             if label_at_min:
                 min_loc = np.argmin(dataset['X'])
                 next_min = np.min(parameter_map[parameter_idx]['datasets'][order[n+1]]['X']) if n < len(parameter_map[parameter_idx]['datasets']) - 1 else dataset['X'][0]
 
                 if n not in hide_labels:
-                    label_ax.text(
-                        dataset['t'][min_loc]+1,
-                        (dataset['X'][min_loc]+next_min) / 2.0,
-                        percent,
-                        color="white",
-                        fontsize=10,
-                        ha="center",
-                        va="center",
-                        path_effects=[
-                            pe.withStroke(linewidth=3, foreground="black")
-                        ],
-                    )
+                    pass
+                    # label_ax.text(
+                    #     dataset['t'][min_loc]+1,
+                    #     (dataset['X'][min_loc]+next_min) / 2.0,
+                    #     percent,
+                    #     color="white",
+                    #     fontsize=10,
+                    #     ha="center",
+                    #     va="center",
+                    #     path_effects=[
+                    #         pe.withStroke(linewidth=3, foreground="black")
+                    #     ],
+                    # )
 
             else:
                 max_loc = np.argmax(dataset['X'])
                 next_max = np.max(parameter_map[parameter_idx]['datasets'][order[n+1]]['X']) if n < len(parameter_map[parameter_idx]['datasets']) - 1 else dataset['X'][0]
 
                 if n not in hide_labels:
-                    label_ax.text(
-                        dataset['t'][max_loc]+1,
-                        (dataset['X'][max_loc]+next_max) / 2.0,
-                        percent,
-                        color="white",
-                        fontsize=10,
-                        ha="center",
-                        va="center",
-                        path_effects=[
-                            pe.withStroke(linewidth=3, foreground="black")
-                        ],
-                        )
+                    pass
+                    # label_ax.text(
+                    #     dataset['t'][max_loc]+1,
+                    #     (dataset['X'][max_loc]+next_max) / 2.0,
+                    #     percent,
+                    #     color="white",
+                    #     fontsize=10,
+                    #     ha="center",
+                    #     va="center",
+                    #     path_effects=[
+                    #         pe.withStroke(linewidth=3, foreground="black")
+                    #     ],
+                    #     )
 
 
     if show_inset:
@@ -256,7 +260,7 @@ plot_datasets(
     (),
     True,
     False,
-    True,
+    False,
     None
 )
 
@@ -303,6 +307,26 @@ plot_datasets(
     True,
     False,
     350
+)
+
+legend_ax = axs["F"]
+legend_ax.axis("off")
+
+handles = [
+    Patch(facecolor="royalblue", edgecolor=None, label="-70 %"),
+    Patch(facecolor="navy", edgecolor=None, label="-40 %"),
+    Patch(facecolor="black", edgecolor=None, label="0 %"),
+    Patch(facecolor="darkred", edgecolor=None, label="+50 %"),
+    Patch(facecolor="red", edgecolor=None, label="+200 %"),
+]
+
+
+legend_ax.legend(
+    handles=handles,
+    loc="center",
+    ncol=1,
+    frameon=False,
+    title="Parameter scaling",
 )
 
 fig.tight_layout()
