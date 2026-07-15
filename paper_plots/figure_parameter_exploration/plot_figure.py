@@ -330,5 +330,6 @@ legend_ax.legend(
 )
 
 fig.tight_layout()
+fig.savefig('figure_parameter_exploration.pdf')
 fig.savefig('figure_parameter_exploration.png', dpi=300)
 plt.show()
