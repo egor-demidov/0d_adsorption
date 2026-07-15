@@ -245,7 +245,7 @@ plot_datasets(
               (2, 4),
     True,
     True,
-    True,
+    False,
     None
 )
 
@@ -314,9 +314,9 @@ legend_ax.axis("off")
 
 handles = [
     Patch(facecolor="royalblue", edgecolor=None, label="-70 %"),
-    Patch(facecolor="navy", edgecolor=None, label="-40 %"),
+    # Patch(facecolor="navy", edgecolor=None, label="-40 %"),
     Patch(facecolor="black", edgecolor=None, label="0 %"),
-    Patch(facecolor="darkred", edgecolor=None, label="+50 %"),
+    # Patch(facecolor="darkred", edgecolor=None, label="+50 %"),
     Patch(facecolor="red", edgecolor=None, label="+200 %"),
 ]
 
